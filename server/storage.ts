@@ -1,38 +1,45 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { categories, products, orders, orderItems } from "@shared/schema";
+import type { 
+  Category, Product, Order, OrderItem,
+  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem 
+} from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getCategories(): Promise<Category[]>;
+  getProducts(): Promise<Product[]>;
+  getOrder(id: number): Promise<Order | undefined>;
+  createOrder(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories).orderBy(categories.sortOrder);
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getProducts(): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.active, true));
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getOrder(id: number): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createOrder(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order> {
+    const [newOrder] = await db.insert(orders).values(order).returning();
+    
+    if (items && items.length > 0) {
+      const orderItemsToInsert = items.map(item => ({
+        ...item,
+        orderId: newOrder.id,
+      }));
+      await db.insert(orderItems).values(orderItemsToInsert);
+    }
+    
+    return newOrder;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
