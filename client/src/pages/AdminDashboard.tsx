@@ -768,6 +768,16 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div>
+                  <label className="block text-xs text-gray-400 mb-1">Título do banner</label>
+                  <input
+                    value={settingsForm.bannerTitle || ""}
+                    onChange={e => handleSettingsChange("bannerTitle", e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="Ex: Promoção de Lançamento"
+                    data-testid="input-banner-title"
+                  />
+                </div>
+                <div>
                   <label className="block text-xs text-gray-400 mb-1">Link ao clicar no banner</label>
                   <input
                     value={settingsForm.bannerLink || ""}
@@ -799,6 +809,56 @@ export default function AdminDashboard() {
                     className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                     placeholder="Estação da Esfiha"
                     data-testid="input-store-name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Descrição curta (aparece no hero)</label>
+                  <input
+                    value={settingsForm.storeDescription || ""}
+                    onChange={e => handleSettingsChange("storeDescription", e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="As melhores esfihas da cidade!"
+                    data-testid="input-store-description"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">URL da imagem hero (fundo do topo)</label>
+                  <input
+                    value={settingsForm.heroImageUrl || ""}
+                    onChange={e => handleSettingsChange("heroImageUrl", e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="https://exemplo.com/foto-principal.jpg"
+                    data-testid="input-hero-image"
+                  />
+                </div>
+              </div>
+
+              {/* Nossa História */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <ExternalLink className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Nossa História</h2>
+                </div>
+                <p className="text-gray-500 text-xs -mt-2">Seção em vermelho exibida na página inicial. Deixe em branco para ocultar.</p>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Título</label>
+                  <input
+                    value={settingsForm.storyTitle || ""}
+                    onChange={e => handleSettingsChange("storyTitle", e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="Nossa História"
+                    data-testid="input-story-title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Texto da história</label>
+                  <textarea
+                    value={settingsForm.storyText || ""}
+                    onChange={e => handleSettingsChange("storyText", e.target.value || null)}
+                    rows={6}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                    placeholder="Escreva aqui a história da sua loja..."
+                    data-testid="input-story-text"
                   />
                 </div>
               </div>

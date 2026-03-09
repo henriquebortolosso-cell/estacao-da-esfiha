@@ -14,27 +14,27 @@ export function FloatingCartBar() {
         <Link
           href="/checkout"
           data-testid="link-floating-cart"
-          className="w-full bg-[#1C1917] text-white rounded-2xl py-3.5 px-4 flex items-center justify-between shadow-2xl shadow-black/30 hover:bg-[#292524] transition-colors"
+          className="w-full bg-black text-white py-4 px-5 flex items-center justify-between shadow-2xl hover:bg-gray-900 transition-colors border-t-4 border-[#D21033]"
         >
           <div className="flex items-center gap-3">
-            <div className="bg-primary rounded-xl w-10 h-10 flex items-center justify-center shrink-0 relative">
+            <div className="relative">
               <ShoppingBag className="w-5 h-5 text-white" />
-              <span className="absolute -top-1.5 -right-1.5 bg-white text-primary text-[9px] font-black h-4 min-w-[16px] px-0.5 rounded-full flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-[#D21033] text-white text-[9px] font-black h-4 min-w-[16px] px-0.5 flex items-center justify-center">
                 {itemCount}
               </span>
             </div>
             <div>
-              <p className="text-white/60 text-xs leading-none mb-0.5">
-                {itemCount} {itemCount === 1 ? "item" : "itens"} no carrinho
+              <p className="text-white/60 text-xs leading-none mb-0.5 uppercase tracking-wide font-bold">
+                {itemCount} {itemCount === 1 ? "item" : "itens"}
               </p>
-              <p className="text-white font-extrabold text-sm leading-none">
+              <p className="text-white font-black text-sm leading-none">
                 {formatCurrency(total)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-sm font-bold text-white/90">
-            Ver carrinho
-            <ArrowRight className="w-4 h-4" />
+          <div className="flex items-center gap-2 bg-[#D21033] px-4 py-2">
+            <span className="text-white font-black uppercase text-xs tracking-wide">Ver carrinho</span>
+            <ArrowRight className="w-4 h-4 text-white" />
           </div>
         </Link>
       </div>

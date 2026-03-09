@@ -53,6 +53,9 @@ export const storeSettings = pgTable("store_settings", {
   bannerTitle: text("banner_title"),
   storeName: text("store_name").notNull().default("Estação da Esfiha"),
   storeDescription: text("store_description"),
+  heroImageUrl: text("hero_image_url"),
+  storyTitle: text("story_title"),
+  storyText: text("story_text"),
 });
 
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });

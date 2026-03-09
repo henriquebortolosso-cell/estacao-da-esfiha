@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, X, ShoppingBag } from "lucide-react";
+import { Plus, Minus, X, UtensilsCrossed } from "lucide-react";
 import { Product } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/lib/cart";
@@ -27,44 +27,44 @@ export function ProductCard({ product }: ProductCardProps) {
       <div
         data-testid={`card-product-${product.id}`}
         onClick={() => setShowModal(true)}
-        className="bg-white rounded-2xl card-shadow hover:card-shadow-hover transition-all cursor-pointer overflow-hidden flex flex-col group"
+        className="bg-white hover:shadow-lg transition-all cursor-pointer overflow-hidden flex flex-col group border border-gray-100"
       >
         {/* Image */}
-        <div className="relative w-full aspect-[4/3] bg-stone-100 overflow-hidden">
+        <div className="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden">
           {product.imageUrl ? (
             <img
               src={product.imageUrl}
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-400"
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-              <ShoppingBag className="w-6 h-6 text-stone-300" />
-              <span className="text-[10px] text-stone-400">Sem foto</span>
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gray-50">
+              <UtensilsCrossed className="w-7 h-7 text-gray-300" />
             </div>
           )}
+
           {quantity > 0 && (
-            <div className="absolute top-2 right-2 bg-primary text-white text-xs font-black rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
-              {quantity}
+            <div className="absolute top-0 left-0 bg-[#D21033] text-white text-xs font-black px-2 py-0.5">
+              {quantity}×
             </div>
           )}
         </div>
 
         {/* Info */}
-        <div className="flex-1 flex flex-col p-3 gap-1.5">
-          <h3 className="font-bold text-sm text-foreground leading-snug">{product.name}</h3>
+        <div className="flex-1 flex flex-col p-3 gap-1">
+          <h3 className="font-black text-sm text-gray-900 uppercase leading-snug">{product.name}</h3>
           {product.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed flex-1">{product.description}</p>
+            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed flex-1">{product.description}</p>
           )}
 
-          <div className="flex items-center justify-between mt-1">
-            <span className="font-extrabold text-sm text-foreground">{formatCurrency(product.price)}</span>
+          <div className="flex items-center justify-between mt-2">
+            <span className="font-black text-sm text-gray-900">{formatCurrency(product.price)}</span>
 
             {quantity === 0 ? (
               <button
                 onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
-                className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-sm hover:bg-primary/90 transition-colors shrink-0"
+                className="bg-[#D21033] text-white p-1.5 flex items-center justify-center hover:bg-[#b01029] transition-colors shrink-0"
                 data-testid={`button-add-${product.id}`}
               >
                 <Plus className="w-4 h-4" />
@@ -72,22 +72,22 @@ export function ProductCard({ product }: ProductCardProps) {
             ) : (
               <div
                 onClick={e => e.stopPropagation()}
-                className="flex items-center gap-1.5 bg-primary/10 rounded-xl px-2 py-1"
+                className="flex items-center gap-1 border-2 border-[#D21033]"
               >
                 <button
                   onClick={() => quantity === 1 ? removeItem(product.id) : updateQuantity(product.id, quantity - 1)}
-                  className="text-primary"
+                  className="text-[#D21033] px-1.5 py-0.5"
                   data-testid={`button-decrease-${product.id}`}
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-3 h-3" />
                 </button>
-                <span className="text-primary text-xs font-black w-4 text-center">{quantity}</span>
+                <span className="text-[#D21033] text-xs font-black w-4 text-center">{quantity}</span>
                 <button
                   onClick={() => updateQuantity(product.id, quantity + 1)}
-                  className="text-primary"
+                  className="text-[#D21033] px-1.5 py-0.5"
                   data-testid={`button-increase-${product.id}`}
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             )}
@@ -98,64 +98,58 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
           onClick={() => { setShowModal(false); setNotes(""); }}
         >
           <div
-            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
+            className="bg-white w-full sm:max-w-md overflow-hidden shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Image */}
-            <div className="relative h-52 bg-stone-100">
+            <div className="relative h-52 bg-gray-100">
               {product.imageUrl ? (
                 <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <ShoppingBag className="w-10 h-10 text-stone-300" />
+                  <UtensilsCrossed className="w-10 h-10 text-gray-300" />
                 </div>
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-12">
+                <h3 className="text-white font-black text-2xl uppercase leading-tight">{product.name}</h3>
+              </div>
               <button
                 onClick={() => { setShowModal(false); setNotes(""); }}
-                className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/70 transition-colors"
+                className="absolute top-3 right-3 bg-black text-white p-2 hover:bg-gray-800 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <h3 className="text-xl font-extrabold text-foreground">{product.name}</h3>
-                  {product.description && (
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{product.description}</p>
-                  )}
-                </div>
-                <div className="bg-primary/10 text-primary font-extrabold text-base rounded-xl px-3 py-1.5 shrink-0">
-                  {formatCurrency(product.price)}
-                </div>
-              </div>
+              {product.description && (
+                <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
+              )}
 
               <div>
-                <label className="text-sm font-semibold text-foreground block mb-2">Alguma observação?</label>
+                <label className="text-xs font-black text-gray-900 uppercase tracking-wide block mb-2">Observação</label>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   placeholder="Ex: sem cebola, bem passado..."
                   maxLength={200}
                   rows={2}
-                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#D21033]/20 focus:border-[#D21033] transition-all"
                 />
               </div>
 
               <button
                 onClick={handleAdd}
                 data-testid={`button-confirm-add-${product.id}`}
-                className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl flex items-center justify-between px-5 transition-colors shadow-lg shadow-primary/25"
+                className="w-full py-4 bg-[#D21033] hover:bg-[#b01029] text-white font-black uppercase tracking-wide flex items-center justify-between px-5 transition-colors"
               >
-                <span className="bg-white/20 rounded-lg px-2 py-0.5 text-sm font-black">1×</span>
-                <span className="text-base">Adicionar ao carrinho</span>
-                <span className="font-black">{formatCurrency(product.price)}</span>
+                <span className="text-sm">Adicionar</span>
+                <span className="text-base">{formatCurrency(product.price)}</span>
               </button>
             </div>
           </div>
