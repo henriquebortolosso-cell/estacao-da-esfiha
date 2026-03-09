@@ -41,7 +41,7 @@ export default function Checkout() {
 
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
-    defaultState: {
+    defaultValues: {
       paymentMethod: "pix"
     }
   });
@@ -134,11 +134,13 @@ export default function Checkout() {
                   <label className="text-sm font-medium text-foreground">WhatsApp / Telefone</label>
                   <input 
                     {...register("customerPhone")}
+                    type="tel"
+                    inputMode="numeric"
                     className={cn(
                       "w-full px-4 py-3 rounded-xl bg-background border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all",
                       errors.customerPhone ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
                     )}
-                    placeholder="(00) 00000-0000"
+                    placeholder="(11) 98765-4321"
                   />
                   {errors.customerPhone && <p className="text-xs text-destructive">{errors.customerPhone.message}</p>}
                 </div>
@@ -193,11 +195,15 @@ export default function Checkout() {
                     <label className="text-sm font-medium text-foreground">CEP</label>
                     <input 
                       {...register("zip")}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="12345-678"
                       className={cn(
                         "w-full px-4 py-3 rounded-xl bg-background border",
                         errors.zip ? "border-destructive" : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                       )}
                     />
+                    {errors.zip && <p className="text-xs text-destructive">{errors.zip.message}</p>}
                   </div>
                 </div>
                 

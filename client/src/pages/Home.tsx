@@ -1,11 +1,32 @@
+import { useState, useMemo } from "react";
 import { Header } from "@/components/layout/Header";
 import { ProductCard } from "@/components/product/ProductCard";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import { useProducts } from "@/hooks/use-products";
+import { useCategories } from "@/hooks/use-categories";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   const { data: products, isLoading } = useProducts();
+  const { data: categories } = useCategories();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    
+    return products.filter((product: any) => {
+      const matchesSearch = searchQuery === "" || 
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = selectedCategory === null || 
+        product.categoryId === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, searchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-8">
@@ -25,15 +46,50 @@ export default function Home() {
             <input
               type="text"
               placeholder="Buscar pratos, lanches..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-11 pr-4 py-3.5 bg-white border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
             />
           </div>
         </div>
 
+        {/* Category Filter */}
+        {categories && categories.length > 0 && (
+          <div className="mb-8">
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={cn(
+                  "px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all shrink-0",
+                  selectedCategory === null
+                    ? "bg-primary text-white"
+                    : "bg-white border border-border text-foreground hover:border-primary"
+                )}
+              >
+                Todos
+              </button>
+              {categories.map((category: any) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={cn(
+                    "px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all shrink-0",
+                    selectedCategory === category.id
+                      ? "bg-primary text-white"
+                      : "bg-white border border-border text-foreground hover:border-primary"
+                  )}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Menu Section */}
         <div>
           <h3 className="text-lg font-bold text-foreground mb-4 border-b border-border pb-2">
-            Cardápio Principal
+            Cardápio
           </h3>
           
           {isLoading ? (
@@ -49,9 +105,9 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : products && products.length > 0 ? (
+          ) : filteredProducts && filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {products.map((product: any) => (
+              {filteredProducts.map((product: any) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
