@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, X } from "lucide-react";
+import { Plus, Minus, X, ShoppingBag } from "lucide-react";
 import { Product } from "@shared/schema";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/lib/cart";
@@ -22,147 +22,140 @@ export function ProductCard({ product }: ProductCardProps) {
     setShowModal(false);
   };
 
-  const openModal = () => {
-    setShowModal(true);
-  };
-
   return (
     <>
       <div
         data-testid={`card-product-${product.id}`}
-        className="bg-white rounded-lg border border-border flex gap-3 p-3 cursor-pointer hover:border-primary/40 transition-colors relative"
-        onClick={openModal}
+        onClick={() => setShowModal(true)}
+        className="bg-white rounded-2xl card-shadow hover:card-shadow-hover transition-all cursor-pointer overflow-hidden flex flex-col group"
       >
-        {/* Content */}
-        <div className="flex-1 flex flex-col justify-between min-w-0">
-          <div>
-            <h3 className="font-bold text-sm text-foreground leading-tight mb-1">
-              {product.name}
-            </h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-              {product.description || ""}
-            </p>
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="font-bold text-sm text-foreground">
-              {formatCurrency(product.price)}
-            </span>
-            {quantity > 0 && (
+        {/* Image */}
+        <div className="relative w-full aspect-[4/3] bg-stone-100 overflow-hidden">
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+              <ShoppingBag className="w-6 h-6 text-stone-300" />
+              <span className="text-[10px] text-stone-400">Sem foto</span>
+            </div>
+          )}
+          {quantity > 0 && (
+            <div className="absolute top-2 right-2 bg-primary text-white text-xs font-black rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
+              {quantity}
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 flex flex-col p-3 gap-1.5">
+          <h3 className="font-bold text-sm text-foreground leading-snug">{product.name}</h3>
+          {product.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed flex-1">{product.description}</p>
+          )}
+
+          <div className="flex items-center justify-between mt-1">
+            <span className="font-extrabold text-sm text-foreground">{formatCurrency(product.price)}</span>
+
+            {quantity === 0 ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
+                className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-sm hover:bg-primary/90 transition-colors shrink-0"
+                data-testid={`button-add-${product.id}`}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            ) : (
               <div
-                className="flex items-center gap-2 bg-primary rounded-full px-2 py-0.5"
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
+                className="flex items-center gap-1.5 bg-primary/10 rounded-xl px-2 py-1"
               >
                 <button
                   onClick={() => quantity === 1 ? removeItem(product.id) : updateQuantity(product.id, quantity - 1)}
-                  className="text-white"
+                  className="text-primary"
                   data-testid={`button-decrease-${product.id}`}
                 >
-                  <Minus className="w-3 h-3" />
+                  <Minus className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-white text-xs font-bold w-4 text-center">{quantity}</span>
+                <span className="text-primary text-xs font-black w-4 text-center">{quantity}</span>
                 <button
                   onClick={() => updateQuantity(product.id, quantity + 1)}
-                  className="text-white"
+                  className="text-primary"
                   data-testid={`button-increase-${product.id}`}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
           </div>
         </div>
-
-        {/* Image + Add button */}
-        <div className="w-20 h-20 shrink-0 relative">
-          <div className="w-full h-full bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-            {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={product.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <span className="text-[10px] text-muted-foreground text-center px-1">Sem foto</span>
-            )}
-          </div>
-          {quantity === 0 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); openModal(); }}
-              className="absolute -bottom-1 -right-1 bg-primary text-white w-7 h-7 rounded-full flex items-center justify-center shadow-md"
-              aria-label="Adicionar"
-              data-testid={`button-add-${product.id}`}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* Modal de observações */}
+      {/* Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
           onClick={() => { setShowModal(false); setNotes(""); }}
         >
           <div
-            className="bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
           >
-            {/* Product image header */}
-            <div className="relative h-48 bg-muted flex items-center justify-center">
+            {/* Image */}
+            <div className="relative h-52 bg-stone-100">
               {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-muted-foreground text-sm">Sem foto</span>
+                <div className="w-full h-full flex items-center justify-center">
+                  <ShoppingBag className="w-10 h-10 text-stone-300" />
+                </div>
               )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               <button
                 onClick={() => { setShowModal(false); setNotes(""); }}
-                className="absolute top-3 right-3 bg-black/50 text-white rounded-full p-1.5"
+                className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm text-white rounded-full p-2 hover:bg-black/70 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">{product.name}</h3>
+                <div className="flex-1">
+                  <h3 className="text-xl font-extrabold text-foreground">{product.name}</h3>
                   {product.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{product.description}</p>
                   )}
                 </div>
-                <span className="font-bold text-foreground whitespace-nowrap">
+                <div className="bg-primary/10 text-primary font-extrabold text-base rounded-xl px-3 py-1.5 shrink-0">
                   {formatCurrency(product.price)}
-                </span>
+                </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground block mb-1.5">
-                  Alguma observação?
-                </label>
+                <label className="text-sm font-semibold text-foreground block mb-2">Alguma observação?</label>
                 <textarea
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: sem cebola, sem tomate, bem quente..."
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Ex: sem cebola, bem passado..."
                   maxLength={200}
                   rows={2}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
 
               <button
                 onClick={handleAdd}
                 data-testid={`button-confirm-add-${product.id}`}
-                className="w-full py-3.5 bg-primary text-white font-bold rounded-lg flex items-center justify-between px-4"
+                className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-2xl flex items-center justify-between px-5 transition-colors shadow-lg shadow-primary/25"
               >
-                <span className="bg-white/20 rounded px-2 py-0.5 text-sm font-bold">1</span>
-                <span>Adicionar</span>
-                <span>{formatCurrency(product.price)}</span>
+                <span className="bg-white/20 rounded-lg px-2 py-0.5 text-sm font-black">1×</span>
+                <span className="text-base">Adicionar ao carrinho</span>
+                <span className="font-black">{formatCurrency(product.price)}</span>
               </button>
             </div>
           </div>

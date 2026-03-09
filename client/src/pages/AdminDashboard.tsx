@@ -241,7 +241,7 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    if (authError) setLocation("/admin");
+    if (authError) setLocation("/");
   }, [authError]);
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-    setLocation("/admin");
+    setLocation("/");
   };
 
   const handleSettingsChange = (key: keyof StoreSettings, value: unknown) => {

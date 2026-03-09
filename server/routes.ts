@@ -140,7 +140,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(order);
   });
 
-  // Admin auth
+  // Admin auth — token link
+  app.post("/api/admin/access", (req, res) => {
+    const { token } = req.body;
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin2024";
+    if (token && token === adminPassword) {
+      req.session!.isAdmin = true;
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ message: "Link inválido" });
+    }
+  });
+
+  // Legacy login kept for compatibility
   app.post("/api/admin/login", (req, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || "admin2024";
