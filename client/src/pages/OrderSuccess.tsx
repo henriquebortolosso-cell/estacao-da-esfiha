@@ -1,14 +1,19 @@
-import { useRoute } from "wouter";
-import { CheckCircle2, MapPin, Receipt, Clock, ChevronRight } from "lucide-react";
+import { useRoute, Link } from "wouter";
+import { CheckCircle2, MapPin, Receipt, Clock, ChevronRight, Phone } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { useOrder } from "@/hooks/use-orders";
 import { formatCurrency } from "@/lib/utils";
-import { Link } from "wouter";
+
+const paymentLabels: Record<string, string> = {
+  pix: "Pix",
+  cartao_credito: "Cartão de Crédito",
+  cartao_debito: "Cartão de Débito",
+  dinheiro: "Dinheiro",
+};
 
 export default function OrderSuccess() {
   const [, params] = useRoute("/order/:id");
   const orderId = params ? parseInt(params.id, 10) : null;
-  
   const { data: order, isLoading } = useOrder(orderId);
 
   if (isLoading) {
@@ -16,7 +21,7 @@ export default function OrderSuccess() {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
         </div>
       </div>
     );
@@ -27,8 +32,8 @@ export default function OrderSuccess() {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="max-w-md mx-auto px-4 py-20 text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Pedido não encontrado</h2>
-          <Link href="/" className="text-primary hover:underline font-medium">Voltar ao Início</Link>
+          <h2 className="text-xl font-bold text-foreground mb-2">Pedido não encontrado</h2>
+          <Link href="/" className="text-primary hover:underline font-medium text-sm">Voltar ao Início</Link>
         </div>
       </div>
     );
@@ -37,64 +42,72 @@ export default function OrderSuccess() {
   return (
     <div className="min-h-screen bg-background pb-12">
       <Header />
-      
-      <main className="max-w-xl mx-auto px-4 pt-10">
-        
-        {/* Success Header */}
-        <div className="text-center mb-10 animate-slide-up">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
+
+      <main className="max-w-lg mx-auto px-4 pt-8">
+
+        {/* Sucesso */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-3xl font-black text-foreground mb-2">Pedido Recebido!</h1>
-          <p className="text-muted-foreground text-lg">
-            Olá, {order.customerName.split(' ')[0]}! Seu pedido <span className="font-bold text-foreground">#{order.id}</span> foi confirmado.
+          <h1 className="text-2xl font-black text-foreground mb-1">Pedido Confirmado!</h1>
+          <p className="text-muted-foreground text-sm">
+            Olá, <strong className="text-foreground">{order.customerName.split(' ')[0]}</strong>! Seu pedido <strong className="text-foreground">#{order.id}</strong> foi recebido.
           </p>
         </div>
 
-        {/* Order Details Cards */}
-        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          
-          {/* Status Card */}
-          <div className="bg-white rounded-2xl p-5 border border-border shadow-sm flex items-start gap-4">
-            <div className="bg-primary/10 p-3 rounded-full">
-              <Clock className="w-6 h-6 text-primary" />
+        <div className="space-y-3">
+
+          {/* Status */}
+          <div className="bg-white rounded-xl p-4 border border-border flex items-start gap-3">
+            <div className="bg-primary/10 p-2.5 rounded-full shrink-0">
+              <Clock className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground text-lg mb-1">Preparando</h3>
+              <h3 className="font-bold text-foreground mb-0.5">Preparando seu pedido</h3>
               <p className="text-sm text-muted-foreground">
-                Seu pedido está sendo preparado com muito carinho. Previsão de entrega: 40-50 min.
+                Seu pedido está sendo preparado com carinho. Previsão: <strong>40–50 min</strong>
               </p>
             </div>
           </div>
 
-          {/* Delivery Card */}
-          <div className="bg-white rounded-2xl p-5 border border-border shadow-sm flex items-start gap-4">
-            <div className="bg-muted p-3 rounded-full">
-              <MapPin className="w-6 h-6 text-muted-foreground" />
+          {/* Entrega */}
+          <div className="bg-white rounded-xl p-4 border border-border flex items-start gap-3">
+            <div className="bg-muted p-2.5 rounded-full shrink-0">
+              <MapPin className="w-5 h-5 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-foreground mb-1">Endereço de Entrega</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {order.deliveryAddress}
-              </p>
+              <h3 className="font-bold text-foreground mb-0.5">Endereço de Entrega</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{order.deliveryAddress}</p>
             </div>
           </div>
 
-          {/* Payment Card */}
-          <div className="bg-white rounded-2xl p-5 border border-border shadow-sm flex items-start gap-4">
-            <div className="bg-muted p-3 rounded-full">
-              <Receipt className="w-6 h-6 text-muted-foreground" />
+          {/* Contato */}
+          <div className="bg-white rounded-xl p-4 border border-border flex items-start gap-3">
+            <div className="bg-muted p-2.5 rounded-full shrink-0">
+              <Phone className="w-5 h-5 text-muted-foreground" />
             </div>
-            <div className="flex-1 flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-foreground mb-0.5">Contato</h3>
+              <p className="text-sm text-muted-foreground">{order.customerPhone}</p>
+            </div>
+          </div>
+
+          {/* Pagamento + Total */}
+          <div className="bg-white rounded-xl p-4 border border-border flex items-start gap-3">
+            <div className="bg-muted p-2.5 rounded-full shrink-0">
+              <Receipt className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 flex justify-between items-start">
               <div>
-                <h3 className="font-bold text-foreground mb-1">Pagamento na Entrega</h3>
-                <p className="text-sm text-muted-foreground capitalize">
-                  {order.paymentMethod.replace('_', ' ')}
-                  {order.changeFor && ` (Troco para ${formatCurrency(order.changeFor)})`}
+                <h3 className="font-bold text-foreground mb-0.5">Pagamento na Entrega</h3>
+                <p className="text-sm text-muted-foreground">
+                  {paymentLabels[order.paymentMethod] || order.paymentMethod}
+                  {order.changeFor && ` · Troco para ${formatCurrency(order.changeFor)}`}
                 </p>
               </div>
               <div className="text-right">
-                <span className="block text-xs text-muted-foreground mb-0.5">Total</span>
+                <span className="block text-xs text-muted-foreground">Total</span>
                 <span className="font-black text-lg text-primary">{formatCurrency(order.total)}</span>
               </div>
             </div>
@@ -102,10 +115,11 @@ export default function OrderSuccess() {
 
         </div>
 
-        <div className="mt-10 text-center animate-fade-in" style={{ animationDelay: '0.2s' }}>
-          <Link 
+        <div className="mt-8 text-center">
+          <Link
             href="/"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-muted text-foreground font-bold rounded-xl hover:bg-muted/80 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-lg text-sm"
+            data-testid="link-new-order"
           >
             Fazer novo pedido
             <ChevronRight className="w-4 h-4" />
