@@ -75,6 +75,18 @@ export const customers = pgTable("customers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const whatsappOrders = pgTable("whatsapp_orders", {
+  id: serial("id").primaryKey(),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone").notNull(),
+  deliveryAddress: text("delivery_address"),
+  itemsJson: text("items_json").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pendente"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, status: true });
@@ -82,12 +94,15 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: t
 export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit({ id: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 
+export const insertWhatsappOrderSchema = createInsertSchema(whatsappOrders).omit({ id: true, createdAt: true });
+
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type StoreSettings = typeof storeSettings.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
+export type WhatsappOrder = typeof whatsappOrders.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -95,3 +110,4 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type InsertStoreSettings = z.infer<typeof insertStoreSettingsSchema>;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type InsertWhatsappOrder = z.infer<typeof insertWhatsappOrderSchema>;

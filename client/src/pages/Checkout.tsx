@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Trash2, Plus, Minus, MapPin, CreditCard, User, FileText, CheckCircle2, ShoppingBag, Star, Gift, Trophy } from "lucide-react";
+import { Trash2, Plus, Minus, MapPin, CreditCard, User, FileText, CheckCircle2, ShoppingBag, Star, Gift, Trophy, MessageCircle } from "lucide-react";
 
 import { Header } from "@/components/layout/Header";
 import { useCart } from "@/lib/cart";
@@ -56,6 +56,8 @@ export default function Checkout() {
   const [loyaltyData, setLoyaltyData] = useState<LoyaltyStatus | null>(null);
   const [usingFreeDelivery, setUsingFreeDelivery] = useState(false);
   const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [isWhatsappPending, setIsWhatsappPending] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -140,6 +142,73 @@ export default function Checkout() {
         setLocation(`/order/${result.id}`);
       }
     });
+  };
+
+  const onSubmitWhatsapp = async (data: CheckoutFormData) => {
+    const fullAddress = `${data.street}, ${data.number}${data.complement ? ` - ${data.complement}` : ''} - ${data.neighborhood}, ${data.city} - ${data.state}, CEP: ${data.zip}`;
+    const storePhone = settings?.whatsappNumber;
+
+    setIsWhatsappPending(true);
+    try {
+      // Record the WhatsApp order in DB
+      const itemsJson = JSON.stringify(items.map(i => ({
+        name: i.product.name,
+        quantity: i.quantity,
+        unitPrice: parseFloat(String(i.product.price)),
+        notes: i.notes || null,
+      })));
+
+      await fetch("/api/whatsapp-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: data.customerName,
+          customerPhone: data.customerPhone.replace(/\D/g, ""),
+          deliveryAddress: fullAddress,
+          itemsJson,
+          paymentMethod: data.paymentMethod,
+          total: String(total),
+          status: "pendente",
+        }),
+      });
+    } catch {
+      // Non-critical — continue to WhatsApp even if recording fails
+    }
+
+    // Format WhatsApp message
+    const lines: string[] = [];
+    lines.push("🍕 *ESTAÇÃO DA ESFIHA*");
+    lines.push("*Novo Pedido* 🛒");
+    lines.push("");
+    lines.push("📦 *Itens:*");
+    items.forEach(item => {
+      const price = parseFloat(String(item.product.price));
+      lines.push(`• ${item.quantity}× ${item.product.name} - ${formatCurrency(price * item.quantity)}`);
+      if (item.notes) lines.push(`  ↳ ${item.notes}`);
+    });
+    lines.push("");
+    lines.push("📍 *Endereço de entrega:*");
+    lines.push(fullAddress);
+    lines.push("");
+    lines.push(`💳 *Pagamento:* ${paymentLabels[data.paymentMethod]}`);
+    if (data.paymentMethod === "dinheiro" && data.changeFor) lines.push(`💵 Troco para: R$ ${data.changeFor}`);
+    lines.push("");
+    lines.push("━━━━━━━━━━━━━━━━━");
+    lines.push(`💰 Subtotal: ${formatCurrency(subtotal)}`);
+    lines.push(`🛵 Entrega: ${usingFreeDelivery ? "GRÁTIS 🎉" : formatCurrency(effectiveDeliveryFee)}`);
+    lines.push(`✅ *Total: ${formatCurrency(total)}*`);
+    lines.push("━━━━━━━━━━━━━━━━━");
+    lines.push("");
+    lines.push(`👤 *Cliente:* ${data.customerName}`);
+    lines.push(`📱 ${data.customerPhone}`);
+
+    const message = encodeURIComponent(lines.join("\n"));
+    const waNumber = storePhone ? `55${storePhone.replace(/\D/g, "")}` : "";
+    const waUrl = `https://wa.me/${waNumber}?text=${message}`;
+
+    setIsWhatsappPending(false);
+    clearCart();
+    window.open(waUrl, "_blank");
   };
 
   const inputClass = (hasError?: boolean) => cn(
@@ -450,7 +519,7 @@ export default function Checkout() {
 
                 <button
                   type="submit"
-                  disabled={createOrder.isPending}
+                  disabled={createOrder.isPending || isWhatsappPending}
                   className="w-full mt-2 py-4 bg-[#D21033] hover:bg-[#b01029] text-white font-black uppercase tracking-wide flex justify-center items-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                   data-testid="button-confirm-order"
                 >
@@ -460,6 +529,29 @@ export default function Checkout() {
                     <>
                       <CheckCircle2 className="w-4 h-4" />
                       Confirmar Pedido
+                    </>
+                  )}
+                </button>
+
+                <div className="relative flex items-center gap-2 py-1">
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">ou</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSubmit(onSubmitWhatsapp)}
+                  disabled={createOrder.isPending || isWhatsappPending}
+                  className="w-full py-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-black uppercase tracking-wide flex justify-center items-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  data-testid="button-whatsapp-order"
+                >
+                  {isWhatsappPending ? (
+                    <span className="animate-pulse">Preparando...</span>
+                  ) : (
+                    <>
+                      <MessageCircle className="w-4 h-4" />
+                      Pedir pelo WhatsApp
                     </>
                   )}
                 </button>

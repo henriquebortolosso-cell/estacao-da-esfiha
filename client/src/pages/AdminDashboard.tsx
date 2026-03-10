@@ -3,13 +3,25 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Package, Tag, Settings, LogOut, Plus, Pencil, Trash2,
-  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard
+  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard, MessageCircle, CheckCircle2, XCircle, PhoneCall
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Product, Category, StoreSettings } from "@shared/schema";
 
-type Tab = "overview" | "products" | "categories" | "settings" | "loyalty";
+type Tab = "overview" | "products" | "categories" | "settings" | "loyalty" | "whatsapp";
+
+type WhatsappOrderData = {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string | null;
+  itemsJson: string;
+  paymentMethod: string;
+  total: string;
+  status: string;
+  createdAt: string | null;
+};
 
 const apiRequest = async (url: string, method = "GET", body?: unknown) => {
   const res = await fetch(url, {
@@ -275,6 +287,16 @@ export default function AdminDashboard() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: whatsappData, refetch: refetchWhatsapp } = useQuery<{
+    orders: WhatsappOrderData[];
+    stats: { total: number; pendente: number; pago: number };
+  }>({
+    queryKey: ["/api/admin/whatsapp-orders"],
+    queryFn: () => apiRequest("/api/admin/whatsapp-orders"),
+    enabled: !authLoading && !authError,
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     if (settings) setSettingsForm(settings);
   }, [settings]);
@@ -322,6 +344,16 @@ export default function AdminDashboard() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const updateWhatsappStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest(`/api/admin/whatsapp-orders/${id}/status`, "PATCH", { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/whatsapp-orders"] });
+      toast({ title: "Status atualizado!" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setLocation("/");
@@ -342,12 +374,13 @@ export default function AdminDashboard() {
 
   if (authError) return null;
 
-  const navItems: { tab: Tab; label: string; icon: React.ReactNode }[] = [
+  const navItems: { tab: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { tab: "overview", label: "Visão Geral", icon: <LayoutDashboard className="w-4 h-4" /> },
     { tab: "products", label: "Produtos", icon: <Package className="w-4 h-4" /> },
     { tab: "categories", label: "Categorias", icon: <Tag className="w-4 h-4" /> },
     { tab: "settings", label: "Configurações", icon: <Settings className="w-4 h-4" /> },
     { tab: "loyalty", label: "Fidelidade", icon: <Trophy className="w-4 h-4" /> },
+    { tab: "whatsapp", label: "Pedidos WhatsApp", icon: <MessageCircle className="w-4 h-4" />, badge: whatsappData?.stats?.pendente || 0 },
   ];
 
   return (
@@ -380,7 +413,12 @@ export default function AdminDashboard() {
               )}
             >
               {item.icon}
-              {item.label}
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.badge != null && item.badge > 0 && (
+                <span className="bg-[#25D366] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none">
+                  {item.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -457,6 +495,29 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+
+              {/* WhatsApp Orders Summary */}
+              {whatsappData && (
+                <div
+                  className="bg-[#075E54]/10 border border-[#25D366]/20 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:bg-[#075E54]/20 transition-colors"
+                  onClick={() => setActiveTab("whatsapp")}
+                  data-testid="card-whatsapp-summary"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#25D366]/20 flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-[#25D366]" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-sm">Pedidos via WhatsApp</p>
+                      <p className="text-gray-400 text-xs">{whatsappData.stats.pago} confirmado{whatsappData.stats.pago !== 1 ? "s" : ""} · {whatsappData.stats.pendente} pendente{whatsappData.stats.pendente !== 1 ? "s" : ""}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-[#25D366]">{whatsappData.stats.total}</p>
+                    <p className="text-xs text-gray-400">total</p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 {/* Quick Actions */}
@@ -1023,6 +1084,134 @@ export default function AdminDashboard() {
                 <Save className="w-4 h-4" />
                 {saveSettings.isPending ? "Salvando..." : "Salvar configurações"}
               </button>
+            </div>
+          )}
+
+          {/* ── WhatsApp Orders Tab ──────────────────── */}
+          {activeTab === "whatsapp" && (
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3 mb-2">
+                <MessageCircle className="w-5 h-5 text-[#25D366]" />
+                <h1 className="text-white font-bold text-lg">Pedidos via WhatsApp</h1>
+              </div>
+              <p className="text-gray-400 text-sm -mt-2">
+                Registros de clientes que escolheram finalizar o pedido pelo WhatsApp. Marque como <strong className="text-white">Pago</strong> para confirmar o pedido e contabilizar no programa de fidelidade.
+              </p>
+
+              {/* Stats cards */}
+              {whatsappData?.stats && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <MessageCircle className="w-5 h-5 text-[#25D366] mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{whatsappData.stats.total}</p>
+                    <p className="text-xs text-gray-400">Total de pedidos</p>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <Clock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{whatsappData.stats.pendente}</p>
+                    <p className="text-xs text-gray-400">Pendentes</p>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <CheckCircle2 className="w-5 h-5 text-green-400 mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{whatsappData.stats.pago}</p>
+                    <p className="text-xs text-gray-400">Confirmados pagos</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Orders list */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+                  <PhoneCall className="w-4 h-4 text-[#25D366]" />
+                  <h2 className="text-white font-semibold text-sm">Lista de Pedidos</h2>
+                </div>
+                {!whatsappData?.orders?.length ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">
+                    Nenhum pedido via WhatsApp ainda. Eles aparecerão aqui quando um cliente usar o botão "Pedir pelo WhatsApp" no checkout.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-800">
+                    {whatsappData.orders.map(order => {
+                      let parsedItems: { name: string; quantity: number; unitPrice: number; notes?: string }[] = [];
+                      try { parsedItems = JSON.parse(order.itemsJson); } catch {}
+                      const paymentLabels: Record<string, string> = {
+                        pix: "Pix", cartao_credito: "Crédito", cartao_debito: "Débito", dinheiro: "Dinheiro"
+                      };
+                      const statusColor: Record<string, string> = {
+                        pendente: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+                        pago: "text-green-400 bg-green-400/10 border-green-400/20",
+                        cancelado: "text-red-400 bg-red-400/10 border-red-400/20",
+                      };
+                      return (
+                        <div key={order.id} className="p-4 space-y-3" data-testid={`row-whatsapp-order-${order.id}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white font-bold text-sm">{order.customerName}</span>
+                                <a
+                                  href={`https://wa.me/55${order.customerPhone}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#25D366] text-xs hover:underline flex items-center gap-1"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                  {order.customerPhone}
+                                </a>
+                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border", statusColor[order.status] || "text-gray-400 bg-gray-400/10 border-gray-400/20")}>
+                                  {order.status.toUpperCase()}
+                                </span>
+                              </div>
+                              {order.deliveryAddress && (
+                                <p className="text-gray-400 text-xs mt-0.5">{order.deliveryAddress}</p>
+                              )}
+                              <p className="text-gray-500 text-xs mt-0.5">
+                                {paymentLabels[order.paymentMethod] || order.paymentMethod} · {order.createdAt ? new Date(order.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : ""}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-white font-black text-base">R$ {Number(order.total).toFixed(2).replace(".", ",")}</p>
+                            </div>
+                          </div>
+
+                          {/* Items */}
+                          <div className="bg-gray-800/50 rounded-lg px-3 py-2 space-y-1">
+                            {parsedItems.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-xs">
+                                <span className="text-gray-300">{item.quantity}× {item.name}{item.notes ? <span className="text-gray-500"> · {item.notes}</span> : ""}</span>
+                                <span className="text-gray-400">R$ {(item.quantity * item.unitPrice).toFixed(2).replace(".", ",")}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Actions */}
+                          {order.status === "pendente" && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => updateWhatsappStatus.mutate({ id: order.id, status: "pago" })}
+                                disabled={updateWhatsappStatus.isPending}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                                data-testid={`button-mark-paid-${order.id}`}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                Marcar como Pago
+                              </button>
+                              <button
+                                onClick={() => updateWhatsappStatus.mutate({ id: order.id, status: "cancelado" })}
+                                disabled={updateWhatsappStatus.isPending}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
+                                data-testid={`button-cancel-order-${order.id}`}
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

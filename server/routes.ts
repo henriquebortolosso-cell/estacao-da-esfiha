@@ -268,6 +268,43 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ customers, stats });
   });
 
+  // ── WhatsApp Orders ───────────────────────────────────
+  app.post("/api/whatsapp-orders", async (req, res) => {
+    try {
+      const { insertWhatsappOrderSchema } = await import("@shared/schema");
+      const data = insertWhatsappOrderSchema.parse(req.body);
+      const order = await storage.createWhatsappOrder(data);
+      res.status(201).json(order);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.get("/api/admin/whatsapp-orders", requireAdmin, async (req, res) => {
+    const orders = await storage.getAllWhatsappOrders();
+    const stats = await storage.getWhatsappOrderStats();
+    res.json({ orders, stats });
+  });
+
+  app.patch("/api/admin/whatsapp-orders/:id/status", requireAdmin, async (req, res) => {
+    const { status } = req.body;
+    if (!["pendente", "pago", "cancelado"].includes(status)) {
+      return res.status(400).json({ message: "Status inválido" });
+    }
+    const order = await storage.updateWhatsappOrderStatus(Number(req.params.id), status);
+    // When marked as paid, update loyalty for the customer
+    if (status === "pago" && order.customerPhone) {
+      try {
+        await storage.upsertCustomer(order.customerPhone, order.customerName);
+        await storage.recordOrderForLoyalty(order.customerPhone, false);
+      } catch (e) {
+        console.warn("[loyalty] Failed to update loyalty for WhatsApp order:", e);
+      }
+    }
+    res.json(order);
+  });
+
   seedDatabase();
   return httpServer;
 }

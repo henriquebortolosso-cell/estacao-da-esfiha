@@ -1,8 +1,8 @@
 import { db } from "./db";
-import { categories, products, orders, orderItems, storeSettings, customers } from "@shared/schema";
+import { categories, products, orders, orderItems, storeSettings, customers, whatsappOrders } from "@shared/schema";
 import type {
-  Category, Product, Order, OrderItem, StoreSettings, Customer,
-  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings, InsertCustomer
+  Category, Product, Order, OrderItem, StoreSettings, Customer, WhatsappOrder,
+  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings, InsertCustomer, InsertWhatsappOrder
 } from "@shared/schema";
 import { eq, desc, sum } from "drizzle-orm";
 
@@ -31,6 +31,12 @@ export interface IStorage {
   updateStoreSettings(settings: Partial<InsertStoreSettings>): Promise<StoreSettings>;
   getAllCustomers(): Promise<Customer[]>;
   getLoyaltyStats(): Promise<{ totalPaidOrders: number; totalFreeDeliveries: number; totalCustomers: number }>;
+
+  // WhatsApp Orders
+  createWhatsappOrder(order: InsertWhatsappOrder): Promise<WhatsappOrder>;
+  getAllWhatsappOrders(): Promise<WhatsappOrder[]>;
+  updateWhatsappOrderStatus(id: number, status: string): Promise<WhatsappOrder>;
+  getWhatsappOrderStats(): Promise<{ total: number; pendente: number; pago: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -155,6 +161,28 @@ export class DatabaseStorage implements IStorage {
     const totalPaidOrders = all.reduce((s, c) => s + c.paidDeliveryOrders, 0);
     const totalFreeDeliveries = all.reduce((s, c) => s + c.freeDeliveriesUsed, 0);
     return { totalPaidOrders, totalFreeDeliveries, totalCustomers: all.length };
+  }
+
+  // ── WhatsApp Orders ─────────────────────────────────────
+  async createWhatsappOrder(order: InsertWhatsappOrder): Promise<WhatsappOrder> {
+    const [created] = await db.insert(whatsappOrders).values(order).returning();
+    return created;
+  }
+
+  async getAllWhatsappOrders(): Promise<WhatsappOrder[]> {
+    return await db.select().from(whatsappOrders).orderBy(desc(whatsappOrders.createdAt));
+  }
+
+  async updateWhatsappOrderStatus(id: number, status: string): Promise<WhatsappOrder> {
+    const [updated] = await db.update(whatsappOrders).set({ status }).where(eq(whatsappOrders.id, id)).returning();
+    return updated;
+  }
+
+  async getWhatsappOrderStats(): Promise<{ total: number; pendente: number; pago: number }> {
+    const all = await db.select().from(whatsappOrders);
+    const pendente = all.filter(o => o.status === "pendente").length;
+    const pago = all.filter(o => o.status === "pago").length;
+    return { total: all.length, pendente, pago };
   }
 }
 
