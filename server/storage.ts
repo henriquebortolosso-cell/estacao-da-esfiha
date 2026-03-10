@@ -1,10 +1,10 @@
 import { db } from "./db";
-import { categories, products, orders, orderItems, storeSettings, customers, whatsappOrders } from "@shared/schema";
+import { categories, products, orders, orderItems, storeSettings, customers, whatsappOrders, coupons } from "@shared/schema";
 import type {
-  Category, Product, Order, OrderItem, StoreSettings, Customer, WhatsappOrder,
-  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings, InsertCustomer, InsertWhatsappOrder
+  Category, Product, Order, OrderItem, StoreSettings, Customer, WhatsappOrder, Coupon,
+  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings, InsertCustomer, InsertWhatsappOrder, InsertCoupon
 } from "@shared/schema";
-import { eq, desc, sum } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Public
@@ -37,6 +37,16 @@ export interface IStorage {
   getAllWhatsappOrders(): Promise<WhatsappOrder[]>;
   updateWhatsappOrderStatus(id: number, status: string): Promise<WhatsappOrder>;
   getWhatsappOrderStats(): Promise<{ total: number; pendente: number; pago: number }>;
+
+  // Coupons
+  validateCoupon(code: string, orderTotal: number): Promise<{ coupon: Coupon; discountAmount: number } | null>;
+  createCoupon(data: InsertCoupon): Promise<Coupon>;
+  getAllCoupons(): Promise<Coupon[]>;
+  deleteCoupon(id: number): Promise<void>;
+  incrementCouponUse(id: number): Promise<void>;
+
+  // Analytics
+  getTopProducts(): Promise<{ productId: number; name: string; totalSold: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -183,6 +193,61 @@ export class DatabaseStorage implements IStorage {
     const pendente = all.filter(o => o.status === "pendente").length;
     const pago = all.filter(o => o.status === "pago").length;
     return { total: all.length, pendente, pago };
+  }
+
+  // ── Coupons ─────────────────────────────────────────────
+  async validateCoupon(code: string, orderTotal: number): Promise<{ coupon: Coupon; discountAmount: number } | null> {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.code, code.toUpperCase().trim()));
+    if (!coupon) return null;
+    if (!coupon.active) return null;
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) return null;
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) return null;
+    if (coupon.minOrder !== null && orderTotal < parseFloat(String(coupon.minOrder))) return null;
+
+    const value = parseFloat(String(coupon.value));
+    let discountAmount = 0;
+    if (coupon.type === "percent") {
+      discountAmount = Math.min(orderTotal, (orderTotal * value) / 100);
+    } else {
+      discountAmount = Math.min(orderTotal, value);
+    }
+    return { coupon, discountAmount: Math.round(discountAmount * 100) / 100 };
+  }
+
+  async createCoupon(data: InsertCoupon): Promise<Coupon> {
+    const normalized = { ...data, code: String(data.code).toUpperCase().trim() };
+    const [created] = await db.insert(coupons).values(normalized).returning();
+    return created;
+  }
+
+  async getAllCoupons(): Promise<Coupon[]> {
+    return await db.select().from(coupons).orderBy(desc(coupons.createdAt));
+  }
+
+  async deleteCoupon(id: number): Promise<void> {
+    await db.delete(coupons).where(eq(coupons.id, id));
+  }
+
+  async incrementCouponUse(id: number): Promise<void> {
+    await db.update(coupons)
+      .set({ usedCount: sql`${coupons.usedCount} + 1` })
+      .where(eq(coupons.id, id));
+  }
+
+  // ── Analytics ───────────────────────────────────────────
+  async getTopProducts(): Promise<{ productId: number; name: string; totalSold: number }[]> {
+    const rows = await db
+      .select({
+        productId: orderItems.productId,
+        name: products.name,
+        totalSold: sql<number>`CAST(SUM(${orderItems.quantity}) AS INTEGER)`,
+      })
+      .from(orderItems)
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .groupBy(orderItems.productId, products.name)
+      .orderBy(desc(sql`SUM(${orderItems.quantity})`))
+      .limit(5);
+    return rows.map(r => ({ productId: r.productId, name: r.name ?? "Produto", totalSold: r.totalSold }));
   }
 }
 

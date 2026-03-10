@@ -9,7 +9,20 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Product, Category, StoreSettings } from "@shared/schema";
 
-type Tab = "overview" | "products" | "categories" | "settings" | "loyalty" | "whatsapp";
+type Tab = "overview" | "products" | "categories" | "settings" | "loyalty" | "whatsapp" | "coupons";
+
+type CouponData = {
+  id: number;
+  code: string;
+  type: string;
+  value: string;
+  minOrder: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  active: boolean;
+  createdAt: string | null;
+};
 
 type WhatsappOrderData = {
   id: number;
@@ -287,7 +300,7 @@ export default function AdminDashboard() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: whatsappData, refetch: refetchWhatsapp } = useQuery<{
+  const { data: whatsappData, dataUpdatedAt: whatsappUpdatedAt } = useQuery<{
     orders: WhatsappOrderData[];
     stats: { total: number; pendente: number; pago: number };
   }>({
@@ -295,6 +308,26 @@ export default function AdminDashboard() {
     queryFn: () => apiRequest("/api/admin/whatsapp-orders"),
     enabled: !authLoading && !authError,
     refetchOnWindowFocus: false,
+    refetchInterval: activeTab === "whatsapp" ? 30000 : false,
+  });
+
+  const { data: couponsData } = useQuery<CouponData[]>({
+    queryKey: ["/api/admin/coupons"],
+    queryFn: () => apiRequest("/api/admin/coupons"),
+    enabled: !authLoading && !authError && activeTab === "coupons",
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: topProducts } = useQuery<{ productId: number; name: string; totalSold: number }[]>({
+    queryKey: ["/api/admin/analytics/top-products"],
+    queryFn: () => apiRequest("/api/admin/analytics/top-products"),
+    enabled: !authLoading && !authError,
+    refetchOnWindowFocus: false,
+  });
+
+  const [couponModal, setCouponModal] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    code: "", type: "percent", value: "", minOrder: "", maxUses: "", expiresAt: "",
   });
 
   useEffect(() => {
@@ -344,6 +377,23 @@ export default function AdminDashboard() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const createCoupon = useMutation({
+    mutationFn: (data: object) => apiRequest("/api/admin/coupons", "POST", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
+      setCouponModal(false);
+      setCouponForm({ code: "", type: "percent", value: "", minOrder: "", maxUses: "", expiresAt: "" });
+      toast({ title: "Cupom criado!" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCoupon = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/admin/coupons/${id}`, "DELETE"),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/admin/coupons"] }); toast({ title: "Cupom removido!" }); },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const updateWhatsappStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       apiRequest(`/api/admin/whatsapp-orders/${id}/status`, "PATCH", { status }),
@@ -381,6 +431,7 @@ export default function AdminDashboard() {
     { tab: "settings", label: "Configurações", icon: <Settings className="w-4 h-4" /> },
     { tab: "loyalty", label: "Fidelidade", icon: <Trophy className="w-4 h-4" /> },
     { tab: "whatsapp", label: "Pedidos WhatsApp", icon: <MessageCircle className="w-4 h-4" />, badge: whatsappData?.stats?.pendente || 0 },
+    { tab: "coupons", label: "Cupons", icon: <Tag className="w-4 h-4" /> },
   ];
 
   return (
@@ -495,6 +546,36 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+
+              {/* Top Products */}
+              {topProducts && topProducts.length > 0 && (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ArrowUpDown className="w-4 h-4 text-primary" />
+                    <h2 className="text-white font-semibold text-sm">Produtos mais vendidos</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {topProducts.map((p, i) => {
+                      const max = topProducts[0].totalSold;
+                      return (
+                        <div key={p.productId} className="flex items-center gap-3">
+                          <span className="text-gray-500 text-xs w-4 shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-xs font-semibold truncate">{p.name}</p>
+                            <div className="mt-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full"
+                                style={{ width: `${(p.totalSold / max) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-gray-300 text-xs font-bold shrink-0">{p.totalSold} un.</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* WhatsApp Orders Summary */}
               {whatsappData && (
@@ -1090,9 +1171,25 @@ export default function AdminDashboard() {
           {/* ── WhatsApp Orders Tab ──────────────────── */}
           {activeTab === "whatsapp" && (
             <div className="p-6 space-y-5">
-              <div className="flex items-center gap-3 mb-2">
-                <MessageCircle className="w-5 h-5 text-[#25D366]" />
-                <h1 className="text-white font-bold text-lg">Pedidos via WhatsApp</h1>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <MessageCircle className="w-5 h-5 text-[#25D366]" />
+                  <h1 className="text-white font-bold text-lg">Pedidos via WhatsApp</h1>
+                </div>
+                <div className="text-right">
+                  {whatsappUpdatedAt > 0 && (
+                    <p className="text-gray-500 text-[10px]">
+                      Atualizado às {new Date(whatsappUpdatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                  <button
+                    onClick={() => qc.invalidateQueries({ queryKey: ["/api/admin/whatsapp-orders"] })}
+                    className="text-xs text-[#25D366] hover:underline"
+                    data-testid="button-refresh-whatsapp"
+                  >
+                    Atualizar agora
+                  </button>
+                </div>
               </div>
               <p className="text-gray-400 text-sm -mt-2">
                 Registros de clientes que escolheram finalizar o pedido pelo WhatsApp. Marque como <strong className="text-white">Pago</strong> para confirmar o pedido e contabilizar no programa de fidelidade.
@@ -1209,6 +1306,90 @@ export default function AdminDashboard() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Coupons Tab ──────────────────────────── */}
+          {activeTab === "coupons" && (
+            <div className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Tag className="w-5 h-5 text-primary" />
+                  <h1 className="text-white font-bold text-lg">Cupons de Desconto</h1>
+                </div>
+                <button
+                  onClick={() => setCouponModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-semibold transition-all"
+                  data-testid="button-new-coupon"
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo Cupom
+                </button>
+              </div>
+              <p className="text-gray-400 text-sm -mt-2">Crie cupons de desconto para usar em promoções e marketing.</p>
+
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                {!couponsData?.length ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">
+                    Nenhum cupom criado ainda. Clique em "Novo Cupom" para criar.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800">
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase">Código</th>
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase">Desconto</th>
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase">Mín. Pedido</th>
+                          <th className="text-center px-4 py-2 text-xs font-bold text-gray-400 uppercase">Usos</th>
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase">Validade</th>
+                          <th className="text-center px-4 py-2 text-xs font-bold text-gray-400 uppercase">Status</th>
+                          <th className="px-4 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {couponsData.map(c => (
+                          <tr key={c.id} className="border-b border-gray-800/50 hover:bg-gray-800/30" data-testid={`row-coupon-${c.id}`}>
+                            <td className="px-4 py-3">
+                              <span className="text-white font-black tracking-widest text-sm">{c.code}</span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-200">
+                              {c.type === "percent" ? `${parseFloat(c.value)}%` : `R$ ${parseFloat(c.value).toFixed(2)}`}
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 text-xs">
+                              {c.minOrder ? `R$ ${parseFloat(c.minOrder).toFixed(2)}` : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-400 text-xs">
+                              {c.usedCount}{c.maxUses ? `/${c.maxUses}` : ""}
+                            </td>
+                            <td className="px-4 py-3 text-gray-400 text-xs">
+                              {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString("pt-BR") : "Sem prazo"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border",
+                                c.active
+                                  ? "text-green-400 bg-green-400/10 border-green-400/20"
+                                  : "text-gray-400 bg-gray-400/10 border-gray-400/20"
+                              )}>
+                                {c.active ? "ATIVO" : "INATIVO"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => { if (confirm(`Remover cupom ${c.code}?`)) deleteCoupon.mutate(c.id); }}
+                                className="text-gray-500 hover:text-red-400 transition-colors"
+                                data-testid={`button-delete-coupon-${c.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -1333,6 +1514,118 @@ export default function AdminDashboard() {
             else createCategory.mutate(data);
           }}
         />
+      )}
+
+      {/* Coupon Modal */}
+      {couponModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setCouponModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+              <h2 className="text-white font-bold">Novo Cupom</h2>
+              <button onClick={() => setCouponModal(false)} className="text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Código do Cupom *</label>
+                <input
+                  value={couponForm.code}
+                  onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                  placeholder="EX: ESFIHA10"
+                  className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm font-bold uppercase tracking-widest focus:outline-none focus:border-primary"
+                  data-testid="input-coupon-code"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Tipo *</label>
+                  <select
+                    value={couponForm.type}
+                    onChange={e => setCouponForm(f => ({ ...f, type: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm focus:outline-none focus:border-primary"
+                    data-testid="select-coupon-type"
+                  >
+                    <option value="percent">Porcentagem (%)</option>
+                    <option value="fixed">Valor fixo (R$)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Valor *</label>
+                  <input
+                    value={couponForm.value}
+                    onChange={e => setCouponForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder={couponForm.type === "percent" ? "10" : "5.00"}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm focus:outline-none focus:border-primary"
+                    data-testid="input-coupon-value"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Pedido mínimo (R$)</label>
+                  <input
+                    value={couponForm.minOrder}
+                    onChange={e => setCouponForm(f => ({ ...f, minOrder: e.target.value }))}
+                    placeholder="0.00"
+                    type="number" min="0" step="0.01"
+                    className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Máx. de usos</label>
+                  <input
+                    value={couponForm.maxUses}
+                    onChange={e => setCouponForm(f => ({ ...f, maxUses: e.target.value }))}
+                    placeholder="Ilimitado"
+                    type="number" min="1"
+                    className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-bold mb-1 block">Data de validade</label>
+                <input
+                  value={couponForm.expiresAt}
+                  onChange={e => setCouponForm(f => ({ ...f, expiresAt: e.target.value }))}
+                  type="date"
+                  className="w-full px-3 py-2.5 bg-gray-800 border border-gray-700 text-white rounded-xl text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (!couponForm.code || !couponForm.value) {
+                    toast({ title: "Preencha o código e o valor", variant: "destructive" });
+                    return;
+                  }
+                  createCoupon.mutate({
+                    code: couponForm.code,
+                    type: couponForm.type,
+                    value: couponForm.value,
+                    minOrder: couponForm.minOrder || null,
+                    maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : null,
+                    expiresAt: couponForm.expiresAt ? new Date(couponForm.expiresAt + "T23:59:59").toISOString() : null,
+                    active: true,
+                  });
+                }}
+                disabled={createCoupon.isPending}
+                className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+                data-testid="button-save-coupon"
+              >
+                {createCoupon.isPending ? "Salvando..." : "Criar Cupom"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Trash2, Plus, Minus, MapPin, CreditCard, User, FileText, CheckCircle2, ShoppingBag, Star, Gift, Trophy, MessageCircle } from "lucide-react";
+import { Trash2, Plus, Minus, MapPin, CreditCard, User, FileText, CheckCircle2, ShoppingBag, Star, Gift, Trophy, MessageCircle, Tag, X } from "lucide-react";
 
 import { Header } from "@/components/layout/Header";
 import { useCart } from "@/lib/cart";
@@ -58,6 +58,10 @@ export default function Checkout() {
   const loyaltyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isWhatsappPending, setIsWhatsappPending] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; type: string; value: number } | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [couponPending, setCouponPending] = useState(false);
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -93,7 +97,44 @@ export default function Checkout() {
 
   // Effective delivery fee
   const effectiveDeliveryFee = usingFreeDelivery ? 0 : deliveryFeeFromSettings;
-  const total = subtotal > 0 ? subtotal + effectiveDeliveryFee : 0;
+  const discount = appliedCoupon?.discountAmount ?? 0;
+  const total = subtotal > 0 ? Math.max(0, subtotal - discount + effectiveDeliveryFee) : 0;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponError("");
+    setCouponPending(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim(), orderTotal: subtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponError(data.message || "Cupom inválido");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon({
+          code: data.coupon.code,
+          discountAmount: data.discountAmount,
+          type: data.coupon.type,
+          value: parseFloat(data.coupon.value),
+        });
+        setCouponError("");
+      }
+    } catch {
+      setCouponError("Erro ao validar cupom");
+    } finally {
+      setCouponPending(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
 
   if (items.length === 0) {
     return (
@@ -117,10 +158,9 @@ export default function Checkout() {
     );
   }
 
-  const onSubmit = (data: CheckoutFormData) => {
+  const buildOrderPayload = (data: CheckoutFormData) => {
     const fullAddress = `${data.street}, ${data.number}${data.complement ? ` - ${data.complement}` : ''} - ${data.neighborhood}, ${data.city} - ${data.state}, CEP: ${data.zip}`;
-
-    const payload = {
+    return {
       customerName: data.customerName,
       customerPhone: data.customerPhone,
       deliveryAddress: fullAddress,
@@ -128,6 +168,8 @@ export default function Checkout() {
       changeFor: data.paymentMethod === 'dinheiro' && data.changeFor ? parseDecimal(data.changeFor.replace(',', '.')) : null,
       total: parseDecimal(String(total)),
       useFreeDelivery: usingFreeDelivery,
+      couponCode: appliedCoupon?.code || null,
+      discountAmount: appliedCoupon?.discountAmount ?? null,
       items: items.map(item => ({
         productId: item.product.id,
         quantity: item.quantity,
@@ -135,8 +177,10 @@ export default function Checkout() {
         notes: item.notes || null
       }))
     };
+  };
 
-    createOrder.mutate(payload, {
+  const onSubmit = (data: CheckoutFormData) => {
+    createOrder.mutate(buildOrderPayload(data), {
       onSuccess: (result) => {
         clearCart();
         setLocation(`/order/${result.id}`);
@@ -145,8 +189,8 @@ export default function Checkout() {
   };
 
   const onSubmitWhatsapp = async (data: CheckoutFormData) => {
-    const fullAddress = `${data.street}, ${data.number}${data.complement ? ` - ${data.complement}` : ''} - ${data.neighborhood}, ${data.city} - ${data.state}, CEP: ${data.zip}`;
     const storePhone = settings?.whatsappNumber;
+    const fullAddress = `${data.street}, ${data.number}${data.complement ? ` - ${data.complement}` : ''} - ${data.neighborhood}, ${data.city} - ${data.state}, CEP: ${data.zip}`;
 
     setIsWhatsappPending(true);
     try {
@@ -195,6 +239,7 @@ export default function Checkout() {
     lines.push("");
     lines.push("━━━━━━━━━━━━━━━━━");
     lines.push(`💰 Subtotal: ${formatCurrency(subtotal)}`);
+    if (appliedCoupon) lines.push(`🎟 Cupom (${appliedCoupon.code}): -${formatCurrency(appliedCoupon.discountAmount)}`);
     lines.push(`🛵 Entrega: ${usingFreeDelivery ? "GRÁTIS 🎉" : formatCurrency(effectiveDeliveryFee)}`);
     lines.push(`✅ *Total: ${formatCurrency(total)}*`);
     lines.push("━━━━━━━━━━━━━━━━━");
@@ -488,12 +533,58 @@ export default function Checkout() {
                 })}
               </div>
 
+              {/* Cupom de desconto */}
+              <div className="px-4 py-3 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="w-3.5 h-3.5 text-[#D21033]" />
+                  <span className="text-xs font-black uppercase tracking-wide text-gray-700">Cupom de desconto</span>
+                </div>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-green-700 uppercase tracking-wide">{appliedCoupon.code}</span>
+                      <span className="text-xs text-green-600">-{formatCurrency(appliedCoupon.discountAmount)}</span>
+                    </div>
+                    <button onClick={handleRemoveCoupon} className="text-gray-400 hover:text-red-500 transition-colors" data-testid="button-remove-coupon">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={couponCode}
+                      onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                      onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleApplyCoupon())}
+                      placeholder="CÓDIGO DO CUPOM"
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 text-xs uppercase font-bold tracking-wide focus:outline-none focus:border-[#D21033] transition-all placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
+                      data-testid="input-coupon"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={couponPending || !couponCode.trim()}
+                      className="px-3 py-2 bg-black text-white text-xs font-black uppercase hover:bg-[#D21033] transition-colors disabled:opacity-50"
+                      data-testid="button-apply-coupon"
+                    >
+                      {couponPending ? "..." : "Aplicar"}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="text-xs text-red-500 mt-1">{couponError}</p>}
+              </div>
+
               {/* Totais */}
               <div className="px-4 py-4 border-t border-gray-100 space-y-2">
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Subtotal</span>
                   <span>{formatCurrency(subtotal)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm text-green-600 font-bold">
+                    <span>🎟 Cupom ({appliedCoupon.code})</span>
+                    <span>-{formatCurrency(appliedCoupon.discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className={usingFreeDelivery ? "text-green-600 font-bold" : "text-gray-500"}>
                     Taxa de Entrega {usingFreeDelivery && "🎉"}

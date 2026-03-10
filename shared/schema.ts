@@ -28,6 +28,8 @@ export const orders = pgTable("orders", {
   status: text("status").notNull().default("pending"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   usedFreeDelivery: boolean("used_free_delivery").notNull().default(false),
+  couponCode: text("coupon_code"),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -87,14 +89,27 @@ export const whatsappOrders = pgTable("whatsapp_orders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  type: text("type").notNull().default("percent"),
+  value: decimal("value", { precision: 10, scale: 2 }).notNull(),
+  minOrder: decimal("min_order", { precision: 10, scale: 2 }),
+  maxUses: integer("max_uses"),
+  usedCount: integer("used_count").notNull().default(0),
+  expiresAt: timestamp("expires_at"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, status: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit({ id: true });
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
-
 export const insertWhatsappOrderSchema = createInsertSchema(whatsappOrders).omit({ id: true, createdAt: true });
+export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true, usedCount: true });
 
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -103,6 +118,7 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type StoreSettings = typeof storeSettings.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type WhatsappOrder = typeof whatsappOrders.$inferSelect;
+export type Coupon = typeof coupons.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
@@ -111,3 +127,4 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type InsertStoreSettings = z.infer<typeof insertStoreSettingsSchema>;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type InsertWhatsappOrder = z.infer<typeof insertWhatsappOrderSchema>;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;

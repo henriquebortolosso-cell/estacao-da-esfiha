@@ -147,13 +147,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
   });
 
+  // ── Coupons ───────────────────────────────────────────
+  app.post("/api/coupons/validate", async (req, res) => {
+    const { code, orderTotal, total } = req.body;
+    const cartTotal = orderTotal ?? total;
+    if (!code || typeof cartTotal !== "number") {
+      return res.status(400).json({ message: "Código e total são obrigatórios" });
+    }
+    const result = await storage.validateCoupon(code, cartTotal);
+    if (!result) {
+      return res.status(400).json({ message: "Cupom inválido, expirado ou não aplicável para este pedido" });
+    }
+    res.json({ coupon: result.coupon, discountAmount: result.discountAmount });
+  });
+
   // ── Orders ────────────────────────────────────────────
   app.post(api.orders.create.path, async (req, res) => {
     try {
-      const { useFreeDelivery, ...rest } = req.body;
+      const { useFreeDelivery, couponCode, discountAmount, ...rest } = req.body;
       const input = api.orders.create.input.parse({
         ...rest,
         usedFreeDelivery: !!useFreeDelivery,
+        couponCode: couponCode || null,
+        discountAmount: discountAmount ? String(discountAmount) : null,
       });
       const { items, ...orderData } = input;
       const order = await storage.createOrder(orderData as any, items as any);
@@ -165,6 +181,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           await storage.recordOrderForLoyalty(orderData.customerPhone, !!useFreeDelivery);
         } catch (e) {
           console.warn("[loyalty] Failed to update loyalty:", e);
+        }
+      }
+
+      // Increment coupon use
+      if (couponCode) {
+        try {
+          const validated = await storage.validateCoupon(couponCode, 0);
+          if (validated) await storage.incrementCouponUse(validated.coupon.id);
+        } catch (e) {
+          console.warn("[coupon] Failed to increment coupon use:", e);
         }
       }
 
@@ -303,6 +329,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
     }
     res.json(order);
+  });
+
+  // ── Admin - Coupons ───────────────────────────────────
+  app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
+    const all = await storage.getAllCoupons();
+    res.json(all);
+  });
+
+  app.post("/api/admin/coupons", requireAdmin, async (req, res) => {
+    try {
+      const { insertCouponSchema } = await import("@shared/schema");
+      const data = insertCouponSchema.parse(req.body);
+      const coupon = await storage.createCoupon(data);
+      res.status(201).json(coupon);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      if ((err as any)?.code === "23505") return res.status(400).json({ message: "Já existe um cupom com este código" });
+      throw err;
+    }
+  });
+
+  app.delete("/api/admin/coupons/:id", requireAdmin, async (req, res) => {
+    await storage.deleteCoupon(Number(req.params.id));
+    res.json({ success: true });
+  });
+
+  // ── Admin - Analytics ─────────────────────────────────
+  app.get("/api/admin/analytics/top-products", requireAdmin, async (req, res) => {
+    const top = await storage.getTopProducts();
+    res.json(top);
   });
 
   seedDatabase();
