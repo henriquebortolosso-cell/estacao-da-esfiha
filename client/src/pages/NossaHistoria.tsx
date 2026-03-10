@@ -3,6 +3,7 @@ import { ArrowLeft, Quote } from "lucide-react";
 import { Link } from "wouter";
 import type { StoreSettings } from "@shared/schema";
 import heroFallback from "@assets/ogImage.jpg";
+import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 
 export default function NossaHistoria() {
   const { data: settings, isLoading } = useQuery<StoreSettings>({ queryKey: ["/api/settings"] });
@@ -114,6 +115,7 @@ export default function NossaHistoria() {
           )}
         </div>
       </section>
+      <WhatsAppButton />
     </div>
   );
 }

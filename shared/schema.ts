@@ -62,6 +62,8 @@ export const storeSettings = pgTable("store_settings", {
   weeklySchedule: text("weekly_schedule"),
   paymentMethods: text("payment_methods"),
   whatsappNumber: text("whatsapp_number"),
+  ratingScore: text("rating_score"),
+  ratingText: text("rating_text"),
 });
 
 export const customers = pgTable("customers", {

@@ -3,7 +3,8 @@ import { Header } from "@/components/layout/Header";
 import { ProductCard } from "@/components/product/ProductCard";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Bike, ChevronRight, ChevronLeft } from "lucide-react";
+import { Clock, Bike, ChevronRight, ChevronLeft, Star, MapPin } from "lucide-react";
+import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { cn } from "@/lib/utils";
 import type { StoreSettings } from "@shared/schema";
 import heroFallback from "@assets/ogImage.jpg";
@@ -93,6 +94,9 @@ export default function Home() {
   const deliveryFee = settings?.deliveryFee ?? "5.00";
   const heroImage = settings?.heroImageUrl || heroFallback;
   const hasBanner = settings?.bannerImageUrl;
+  const ratingScore = (settings as any)?.ratingScore;
+  const ratingText = (settings as any)?.ratingText;
+  const address = (settings as any)?.address;
 
   return (
     <div className="min-h-screen bg-[#F6F6F6] pb-28">
@@ -126,6 +130,18 @@ export default function Home() {
               <Bike className="w-3.5 h-3.5 text-[#D21033]" />
               {Number(deliveryFee) === 0 ? "Entrega grátis" : `Taxa R$ ${Number(deliveryFee).toFixed(2).replace(".", ",")}`}
             </div>
+            {ratingScore && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-3 py-1.5 text-xs font-bold tracking-wide">
+                <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                {ratingScore}{ratingText ? ` · ${ratingText}` : ""}
+              </div>
+            )}
+            {address && (
+              <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white px-3 py-1.5 text-xs font-medium tracking-wide max-w-xs">
+                <MapPin className="w-3.5 h-3.5 text-[#D21033] shrink-0" />
+                <span className="truncate">{address}</span>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -256,6 +272,7 @@ export default function Home() {
       </main>
 
       <FloatingCartBar />
+      <WhatsAppButton />
     </div>
   );
 }
