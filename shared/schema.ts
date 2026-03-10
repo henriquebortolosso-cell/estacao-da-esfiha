@@ -57,6 +57,7 @@ export const storeSettings = pgTable("store_settings", {
   heroImageUrl: text("hero_image_url"),
   storyTitle: text("story_title"),
   storyText: text("story_text"),
+  storyBgUrl: text("story_bg_url"),
 });
 
 export const customers = pgTable("customers", {

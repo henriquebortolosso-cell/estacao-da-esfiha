@@ -875,6 +875,17 @@ export default function AdminDashboard() {
                     data-testid="input-story-text"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">URL da imagem de fundo da história</label>
+                  <p className="text-gray-600 text-xs mb-1">Aparece como fundo da seção "Nossa História". Sem imagem, usa fundo escuro.</p>
+                  <input
+                    value={(settingsForm as any).storyBgUrl || ""}
+                    onChange={e => handleSettingsChange("storyBgUrl" as any, e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="https://exemplo.com/imagem-fundo.jpg"
+                    data-testid="input-story-bg"
+                  />
+                </div>
               </div>
 
               {/* Save button */}
