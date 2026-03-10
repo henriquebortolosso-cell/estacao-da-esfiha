@@ -58,6 +58,10 @@ export const storeSettings = pgTable("store_settings", {
   storyTitle: text("story_title"),
   storyText: text("story_text"),
   storyBgUrl: text("story_bg_url"),
+  address: text("address"),
+  weeklySchedule: text("weekly_schedule"),
+  paymentMethods: text("payment_methods"),
+  whatsappNumber: text("whatsapp_number"),
 });
 
 export const customers = pgTable("customers", {

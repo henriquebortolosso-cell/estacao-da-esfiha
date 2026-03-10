@@ -10,6 +10,7 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import AdminAccess from "./pages/AdminAccess";
 import AdminDashboard from "./pages/AdminDashboard";
+import NossaHistoria from "./pages/NossaHistoria";
 import { CartProvider } from "./lib/cart";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/order/:id" component={OrderSuccess} />
+      <Route path="/nossa-historia" component={NossaHistoria} />
       <Route path="/painel/acesso/:token" component={AdminAccess} />
       <Route path="/painel" component={AdminDashboard} />
       <Route component={NotFound} />

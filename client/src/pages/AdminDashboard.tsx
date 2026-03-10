@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Package, Tag, Settings, LogOut, Plus, Pencil, Trash2,
-  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users
+  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -847,13 +847,111 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Localização & Contato */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Localização & Contato</h2>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Endereço completo</label>
+                  <input
+                    value={(settingsForm as any).address || ""}
+                    onChange={e => handleSettingsChange("address" as any, e.target.value || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="Av. dos Autonomistas, 6250, KM 18 - Osasco, SP"
+                    data-testid="input-address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Número do WhatsApp (só números, com DDD)</label>
+                  <input
+                    value={(settingsForm as any).whatsappNumber || ""}
+                    onChange={e => handleSettingsChange("whatsappNumber" as any, e.target.value.replace(/\D/g, "") || null)}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder="11999998888"
+                    data-testid="input-whatsapp"
+                  />
+                </div>
+              </div>
+
+              {/* Horário semanal */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Horário por dia da semana</h2>
+                </div>
+                <p className="text-gray-500 text-xs -mt-2">Exibido no modal de informações ao clicar na logo.</p>
+                {(() => {
+                  const defaultSched = [
+                    { day: "Segunda-feira", hours: "11:00 às 23:59" },
+                    { day: "Terça-feira", hours: "00:00 às 04:00" },
+                    { day: "Quarta-feira", hours: "11:00 às 23:59" },
+                    { day: "Quinta-feira", hours: "11:00 às 23:59" },
+                    { day: "Sexta-feira", hours: "11:00 às 23:59" },
+                    { day: "Sábado", hours: "11:02 às 23:58" },
+                    { day: "Domingo", hours: "11:00 às 23:59" },
+                  ];
+                  let sched = defaultSched;
+                  try { sched = JSON.parse((settingsForm as any).weeklySchedule || "") || defaultSched; } catch {}
+                  return sched.map((item: any, idx: number) => (
+                    <div key={item.day} className="flex items-center gap-3">
+                      <span className="text-gray-400 text-xs w-28 shrink-0">{item.day}</span>
+                      <input
+                        value={item.hours}
+                        onChange={e => {
+                          const updated = [...sched];
+                          updated[idx] = { ...item, hours: e.target.value };
+                          handleSettingsChange("weeklySchedule" as any, JSON.stringify(updated));
+                        }}
+                        className="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        placeholder="11:00 às 23:59"
+                      />
+                    </div>
+                  ));
+                })()}
+              </div>
+
+              {/* Métodos de pagamento */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Formas de pagamento aceitas</h2>
+                </div>
+                <p className="text-gray-500 text-xs -mt-2">Exibido no modal de informações ao clicar na logo.</p>
+                {["Dinheiro", "Cartão de Crédito", "Cartão de Débito", "Pix"].map(method => {
+                  let methods: string[] = ["Dinheiro", "Cartão de Crédito", "Cartão de Débito"];
+                  try { methods = JSON.parse((settingsForm as any).paymentMethods || "") || methods; } catch {}
+                  const checked = methods.includes(method);
+                  return (
+                    <label key={method} className="flex items-center gap-3 cursor-pointer">
+                      <div
+                        onClick={() => {
+                          let curr: string[] = [];
+                          try { curr = JSON.parse((settingsForm as any).paymentMethods || "") || []; } catch {}
+                          const next = checked ? curr.filter((m: string) => m !== method) : [...curr, method];
+                          handleSettingsChange("paymentMethods" as any, JSON.stringify(next));
+                        }}
+                        className={cn(
+                          "w-5 h-5 border-2 flex items-center justify-center transition-colors",
+                          checked ? "bg-primary border-primary" : "border-gray-600"
+                        )}
+                      >
+                        {checked && <span className="text-white text-xs font-black">✓</span>}
+                      </div>
+                      <span className="text-gray-300 text-sm">{method}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
               {/* Nossa História */}
               <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <ExternalLink className="w-4 h-4 text-primary" />
                   <h2 className="text-white font-semibold text-sm">Nossa História</h2>
                 </div>
-                <p className="text-gray-500 text-xs -mt-2">Seção em vermelho exibida na página inicial. Deixe em branco para ocultar.</p>
+                <p className="text-gray-500 text-xs -mt-2">Página acessível pelo menu hambúrguer. Deixe o texto em branco para ocultar.</p>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Título</label>
                   <input

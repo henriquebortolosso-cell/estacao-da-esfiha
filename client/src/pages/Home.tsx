@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { ProductCard } from "@/components/product/ProductCard";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Bike, ChevronRight, ChevronLeft, Quote } from "lucide-react";
+import { Clock, Bike, ChevronRight, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StoreSettings } from "@shared/schema";
 import heroFallback from "@assets/ogImage.jpg";
@@ -18,6 +18,8 @@ export default function Home() {
   const categoryRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const navRef = useRef<HTMLDivElement | null>(null);
   const rowRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const isProgrammaticScroll = useRef(false);
+  const programmaticScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const categoriesWithProducts = useMemo(() => {
     if (!products || !categories) return [];
@@ -39,6 +41,11 @@ export default function Home() {
     setActiveCategory(categoryId);
     const el = categoryRefs.current[categoryId];
     if (el) {
+      isProgrammaticScroll.current = true;
+      if (programmaticScrollTimer.current) clearTimeout(programmaticScrollTimer.current);
+      programmaticScrollTimer.current = setTimeout(() => {
+        isProgrammaticScroll.current = false;
+      }, 1000);
       const OFFSET = 124;
       const top = el.getBoundingClientRect().top + window.scrollY - OFFSET;
       window.scrollTo({ top, behavior: "smooth" });
@@ -52,6 +59,7 @@ export default function Home() {
 
   useEffect(() => {
     const handleScroll = () => {
+      if (isProgrammaticScroll.current) return;
       const offset = 124;
       for (const cat of categoriesWithProducts) {
         const el = categoryRefs.current[cat.id];
@@ -62,7 +70,13 @@ export default function Home() {
             const navEl = navRef.current;
             if (navEl) {
               const btn = navEl.querySelector(`[data-cat-id="${cat.id}"]`) as HTMLElement;
-              if (btn) btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+              if (btn) {
+                const navRect = navEl.getBoundingClientRect();
+                const btnRect = btn.getBoundingClientRect();
+                if (btnRect.left < navRect.left || btnRect.right > navRect.right) {
+                  btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                }
+              }
             }
             break;
           }
@@ -78,9 +92,6 @@ export default function Home() {
   const estimatedMax = settings?.estimatedTimeMax ?? 60;
   const deliveryFee = settings?.deliveryFee ?? "5.00";
   const heroImage = settings?.heroImageUrl || heroFallback;
-  const storyTitle = settings?.storyTitle || "Nossa História";
-  const storyText = settings?.storyText;
-  const storyBgUrl = (settings as any)?.storyBgUrl;
   const hasBanner = settings?.bannerImageUrl;
 
   return (
@@ -243,52 +254,6 @@ export default function Home() {
           ))
         )}
       </main>
-
-      {/* ── Nossa História ──────────────────────────────
-           Full-bleed section, page-like, with bg image  */}
-      {storyText && (
-        <section
-          className="relative w-full min-h-[480px] sm:min-h-[560px] flex items-center mt-12 overflow-hidden"
-          data-testid="section-story"
-        >
-          {/* Background */}
-          {storyBgUrl ? (
-            <img src={storyBgUrl} alt="Nossa História" className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-[#1a0a0a]" />
-          )}
-
-          {/* Overlays */}
-          <div className="absolute inset-0 bg-black/70" />
-          {/* Red accent strip on left */}
-          <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#D21033]" />
-          {/* Decorative large red circle */}
-          <div className="absolute -right-32 -top-32 w-96 h-96 rounded-full bg-[#D21033]/10 pointer-events-none" />
-          <div className="absolute -right-16 -bottom-24 w-64 h-64 rounded-full bg-[#D21033]/5 pointer-events-none" />
-
-          {/* Content */}
-          <div className="relative z-10 w-full max-w-4xl mx-auto px-8 sm:px-16 py-16">
-            <div className="flex items-start gap-4 mb-6">
-              <Quote className="w-10 h-10 text-[#D21033] shrink-0 mt-1" />
-              <div>
-                <p className="text-[#D21033] text-xs font-black uppercase tracking-[0.4em] mb-2">Conheça a gente</p>
-                <h2 className="text-white font-black text-3xl sm:text-5xl uppercase leading-tight tracking-tight">
-                  {storyTitle}
-                </h2>
-              </div>
-            </div>
-
-            {/* Red rule */}
-            <div className="w-16 h-1 bg-[#D21033] mb-8 ml-14" />
-
-            <div className="ml-14">
-              <p className="text-white/85 text-base sm:text-xl leading-relaxed font-medium whitespace-pre-line max-w-2xl">
-                {storyText}
-              </p>
-            </div>
-          </div>
-        </section>
-      )}
 
       <FloatingCartBar />
     </div>
