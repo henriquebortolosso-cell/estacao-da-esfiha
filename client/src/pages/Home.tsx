@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { ProductCard } from "@/components/product/ProductCard";
 import { FloatingCartBar } from "@/components/cart/FloatingCartBar";
 import { useQuery } from "@tanstack/react-query";
-import { Clock, Bike, ChevronRight, ChevronLeft, Star, MapPin } from "lucide-react";
+import { Clock, Bike, ChevronRight, ChevronLeft, Star, MapPin, Flame } from "lucide-react";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { cn } from "@/lib/utils";
 import type { StoreSettings } from "@shared/schema";
@@ -221,9 +221,14 @@ export default function Home() {
               {/* Section header */}
               <div className="flex items-center justify-between px-4 max-w-6xl mx-auto mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-1 h-7 bg-[#D21033] shrink-0" />
+                  <div className={`w-1 h-7 shrink-0 ${cat.name.toUpperCase().includes("PROMO") ? "bg-gradient-to-b from-[#D21033] to-orange-500" : "bg-[#D21033]"}`} />
                   <div>
-                    <h2 className="font-black text-lg uppercase tracking-tight text-gray-900 leading-none">{cat.name}</h2>
+                    <div className="flex items-center gap-1.5">
+                      {cat.name.toUpperCase().includes("PROMO") && (
+                        <Flame className="w-4 h-4 text-[#D21033]" />
+                      )}
+                      <h2 className="font-black text-lg uppercase tracking-tight text-gray-900 leading-none">{cat.name}</h2>
+                    </div>
                     <p className="text-xs text-gray-400 font-semibold mt-0.5">{cat.products.length} {cat.products.length === 1 ? "item" : "itens"}</p>
                   </div>
                 </div>
@@ -257,10 +262,10 @@ export default function Home() {
                 {cat.products.map((product: any) => (
                   <div
                     key={product.id}
-                    className="shrink-0 w-[158px] sm:w-[180px]"
+                    className="shrink-0 w-[190px] sm:w-[220px]"
                     style={{ scrollSnapAlign: "start" }}
                   >
-                    <ProductCard product={product} />
+                    <ProductCard product={product} isPromo={cat.name.toUpperCase().includes("PROMO")} />
                   </div>
                 ))}
                 {/* Right padding */}

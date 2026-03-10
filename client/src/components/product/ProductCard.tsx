@@ -6,9 +6,10 @@ import { useCart } from "@/lib/cart";
 
 interface ProductCardProps {
   product: Product;
+  isPromo?: boolean;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, isPromo }: ProductCardProps) {
   const { addItem, items, updateQuantity, removeItem } = useCart();
   const [showModal, setShowModal] = useState(false);
   const [notes, setNotes] = useState("");
@@ -28,9 +29,10 @@ export function ProductCard({ product }: ProductCardProps) {
         data-testid={`card-product-${product.id}`}
         onClick={() => setShowModal(true)}
         className="bg-white hover:shadow-lg transition-all cursor-pointer overflow-hidden flex flex-col group border border-gray-100"
+        style={isPromo ? { borderBottom: "3px solid #D21033" } : undefined}
       >
         {/* Image */}
-        <div className="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden">
+        <div className="relative w-full aspect-square bg-gray-100 overflow-hidden">
           {product.imageUrl ? (
             <img
               src={product.imageUrl}
@@ -41,6 +43,13 @@ export function ProductCard({ product }: ProductCardProps) {
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gray-50">
               <UtensilsCrossed className="w-7 h-7 text-gray-300" />
+            </div>
+          )}
+
+          {/* Promo badge */}
+          {isPromo && (
+            <div className="absolute top-2 right-2 bg-[#D21033] text-white text-[10px] font-black px-2 py-0.5 flex items-center gap-0.5 shadow-md">
+              🔥 PROMO
             </div>
           )}
 
@@ -106,7 +115,7 @@ export function ProductCard({ product }: ProductCardProps) {
             onClick={e => e.stopPropagation()}
           >
             {/* Image */}
-            <div className="relative h-52 bg-gray-100">
+            <div className="relative h-72 bg-gray-100">
               {product.imageUrl ? (
                 <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
               ) : (
@@ -115,6 +124,11 @@ export function ProductCard({ product }: ProductCardProps) {
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              {isPromo && (
+                <div className="absolute top-4 right-4 bg-[#D21033] text-white text-xs font-black px-3 py-1">
+                  🔥 PROMOÇÃO
+                </div>
+              )}
               <div className="absolute bottom-4 left-4 right-12">
                 <h3 className="text-white font-black text-2xl uppercase leading-tight">{product.name}</h3>
               </div>
