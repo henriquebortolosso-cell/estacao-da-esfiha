@@ -1,10 +1,10 @@
 import { db } from "./db";
-import { categories, products, orders, orderItems, storeSettings } from "@shared/schema";
+import { categories, products, orders, orderItems, storeSettings, customers } from "@shared/schema";
 import type {
-  Category, Product, Order, OrderItem, StoreSettings,
-  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings
+  Category, Product, Order, OrderItem, StoreSettings, Customer,
+  InsertCategory, InsertProduct, InsertOrder, InsertOrderItem, InsertStoreSettings, InsertCustomer
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc, sum } from "drizzle-orm";
 
 export interface IStorage {
   // Public
@@ -13,6 +13,11 @@ export interface IStorage {
   getOrder(id: number): Promise<Order | undefined>;
   createOrder(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order>;
   getStoreSettings(): Promise<StoreSettings | undefined>;
+
+  // Loyalty
+  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  upsertCustomer(phone: string, name: string): Promise<Customer>;
+  recordOrderForLoyalty(phone: string, usedFreeDelivery: boolean): Promise<Customer>;
 
   // Admin
   createCategory(cat: InsertCategory): Promise<Category>;
@@ -24,6 +29,8 @@ export interface IStorage {
   deleteProduct(id: number): Promise<void>;
 
   updateStoreSettings(settings: Partial<InsertStoreSettings>): Promise<StoreSettings>;
+  getAllCustomers(): Promise<Customer[]>;
+  getLoyaltyStats(): Promise<{ totalPaidOrders: number; totalFreeDeliveries: number; totalCustomers: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -58,6 +65,48 @@ export class DatabaseStorage implements IStorage {
     return settings;
   }
 
+  // ── Loyalty ────────────────────────────────────────────
+  async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
+    const normalized = phone.replace(/\D/g, "");
+    const [customer] = await db.select().from(customers).where(eq(customers.phone, normalized));
+    return customer;
+  }
+
+  async upsertCustomer(phone: string, name: string): Promise<Customer> {
+    const normalized = phone.replace(/\D/g, "");
+    const existing = await this.getCustomerByPhone(normalized);
+    if (existing) {
+      const [updated] = await db.update(customers)
+        .set({ name })
+        .where(eq(customers.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(customers).values({ phone: normalized, name }).returning();
+    return created;
+  }
+
+  async recordOrderForLoyalty(phone: string, usedFreeDelivery: boolean): Promise<Customer> {
+    const normalized = phone.replace(/\D/g, "");
+    const existing = await this.getCustomerByPhone(normalized);
+    if (!existing) throw new Error("Customer not found");
+
+    if (usedFreeDelivery) {
+      const [updated] = await db.update(customers)
+        .set({ freeDeliveriesUsed: existing.freeDeliveriesUsed + 1 })
+        .where(eq(customers.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [updated] = await db.update(customers)
+        .set({ paidDeliveryOrders: existing.paidDeliveryOrders + 1 })
+        .where(eq(customers.id, existing.id))
+        .returning();
+      return updated;
+    }
+  }
+
+  // ── Admin ───────────────────────────────────────────────
   async createCategory(cat: InsertCategory): Promise<Category> {
     const [newCat] = await db.insert(categories).values(cat).returning();
     return newCat;
@@ -95,6 +144,17 @@ export class DatabaseStorage implements IStorage {
       const [newSettings] = await db.insert(storeSettings).values(settings as InsertStoreSettings).returning();
       return newSettings;
     }
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    return await db.select().from(customers).orderBy(desc(customers.paidDeliveryOrders));
+  }
+
+  async getLoyaltyStats(): Promise<{ totalPaidOrders: number; totalFreeDeliveries: number; totalCustomers: number }> {
+    const all = await db.select().from(customers);
+    const totalPaidOrders = all.reduce((s, c) => s + c.paidDeliveryOrders, 0);
+    const totalFreeDeliveries = all.reduce((s, c) => s + c.freeDeliveriesUsed, 0);
+    return { totalPaidOrders, totalFreeDeliveries, totalCustomers: all.length };
   }
 }
 

@@ -38,14 +38,16 @@ export default function Home() {
     setActiveCategory(categoryId);
     const el = categoryRefs.current[categoryId];
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 130;
+      // header (64px) + category nav (~44px) + gap (16px)
+      const OFFSET = 124;
+      const top = el.getBoundingClientRect().top + window.scrollY - OFFSET;
       window.scrollTo({ top, behavior: "smooth" });
     }
   };
 
   useEffect(() => {
     const handleScroll = () => {
-      const offset = 160;
+      const offset = 124;
       for (const cat of categoriesWithProducts) {
         const el = categoryRefs.current[cat.id];
         if (el) {

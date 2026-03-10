@@ -27,6 +27,7 @@ export const orders = pgTable("orders", {
   changeFor: decimal("change_for", { precision: 10, scale: 2 }),
   status: text("status").notNull().default("pending"),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  usedFreeDelivery: boolean("used_free_delivery").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -58,20 +59,32 @@ export const storeSettings = pgTable("store_settings", {
   storyText: text("story_text"),
 });
 
+export const customers = pgTable("customers", {
+  id: serial("id").primaryKey(),
+  phone: text("phone").notNull().unique(),
+  name: text("name").notNull(),
+  paidDeliveryOrders: integer("paid_delivery_orders").notNull().default(0),
+  freeDeliveriesUsed: integer("free_deliveries_used").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, status: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit({ id: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 
 export type Category = typeof categories.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type StoreSettings = typeof storeSettings.$inferSelect;
+export type Customer = typeof customers.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type InsertStoreSettings = z.infer<typeof insertStoreSettingsSchema>;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;

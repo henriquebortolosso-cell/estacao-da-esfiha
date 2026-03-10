@@ -50,6 +50,14 @@ Design original moderno inspirado no Five Guys (bold, vermelho #D21033, preto, P
 - `/painel` - Dashboard admin (requer autenticação)
 - `/painel/acesso/:token` - Link de acesso admin (automático, sem formulário)
 
+## Programa de Fidelidade
+
+- Rastreado por telefone do cliente (tabela `customers`)
+- A cada 10 pedidos com frete pago → 1 frete grátis disponível
+- No checkout: campo de telefone → lookup automático → card de status exibido
+- Barra de progresso visual (X/10 pedidos) com distinção por pedido pago vs grátis
+- Admin: aba "Fidelidade" mostra tabela completa de clientes + stats
+
 ## Schema DB (store_settings)
 
 Colunas: isOpen, openTime, closeTime, estimatedTimeMin, estimatedTimeMax,

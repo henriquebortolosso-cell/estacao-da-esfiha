@@ -76,7 +76,6 @@ async function seedDatabase() {
       console.log("[seed] Database seeded with real products!");
     }
 
-    // Seed store settings if not exists
     const existingSettings = await storage.getStoreSettings();
     if (!existingSettings) {
       await db.insert(storeSettings).values({
@@ -104,7 +103,7 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  // Public routes
+  // ── Public routes ─────────────────────────────────────
   app.get(api.categories.list.path, async (req, res) => {
     const cats = await storage.getCategories();
     res.json(cats);
@@ -120,11 +119,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(settings || {});
   });
 
+  // ── Loyalty: public lookup by phone ──────────────────
+  app.get("/api/loyalty/:phone", async (req, res) => {
+    const customer = await storage.getCustomerByPhone(req.params.phone);
+    if (!customer) {
+      return res.json({
+        found: false,
+        paidDeliveryOrders: 0,
+        freeDeliveriesUsed: 0,
+        freeDeliveriesAvailable: 0,
+        ordersUntilFree: 10,
+        progress: 0,
+      });
+    }
+    const freeEarned = Math.floor(customer.paidDeliveryOrders / 10);
+    const freeAvailable = freeEarned - customer.freeDeliveriesUsed;
+    const ordersInCurrentCycle = customer.paidDeliveryOrders % 10;
+    const ordersUntilFree = freeAvailable > 0 ? 0 : 10 - ordersInCurrentCycle;
+    return res.json({
+      found: true,
+      name: customer.name,
+      paidDeliveryOrders: customer.paidDeliveryOrders,
+      freeDeliveriesUsed: customer.freeDeliveriesUsed,
+      freeDeliveriesAvailable: freeAvailable,
+      ordersUntilFree,
+      progress: ordersInCurrentCycle,
+    });
+  });
+
+  // ── Orders ────────────────────────────────────────────
   app.post(api.orders.create.path, async (req, res) => {
     try {
-      const input = api.orders.create.input.parse(req.body);
+      const { useFreeDelivery, ...rest } = req.body;
+      const input = api.orders.create.input.parse({
+        ...rest,
+        usedFreeDelivery: !!useFreeDelivery,
+      });
       const { items, ...orderData } = input;
       const order = await storage.createOrder(orderData as any, items as any);
+
+      // Update loyalty
+      if (orderData.customerPhone) {
+        try {
+          await storage.upsertCustomer(orderData.customerPhone, orderData.customerName);
+          await storage.recordOrderForLoyalty(orderData.customerPhone, !!useFreeDelivery);
+        } catch (e) {
+          console.warn("[loyalty] Failed to update loyalty:", e);
+        }
+      }
+
       res.status(201).json(order);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -140,7 +183,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(order);
   });
 
-  // Admin auth — token link
+  // ── Admin auth ────────────────────────────────────────
   app.post("/api/admin/access", (req, res) => {
     const { token } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || "admin2024";
@@ -149,18 +192,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ success: true });
     } else {
       res.status(401).json({ message: "Link inválido" });
-    }
-  });
-
-  // Legacy login kept for compatibility
-  app.post("/api/admin/login", (req, res) => {
-    const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin2024";
-    if (password === adminPassword) {
-      req.session!.isAdmin = true;
-      res.json({ success: true });
-    } else {
-      res.status(401).json({ message: "Senha incorreta" });
     }
   });
 
@@ -173,7 +204,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ authenticated: true });
   });
 
-  // Admin - Products
+  // ── Admin - Products ──────────────────────────────────
   app.get("/api/admin/products", requireAdmin, async (req, res) => {
     const prods = await (storage as any).getAllProducts();
     res.json(prods);
@@ -192,12 +223,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   app.put("/api/admin/products/:id", requireAdmin, async (req, res) => {
-    try {
-      const product = await storage.updateProduct(Number(req.params.id), req.body);
-      res.json(product);
-    } catch (err) {
-      throw err;
-    }
+    const product = await storage.updateProduct(Number(req.params.id), req.body);
+    res.json(product);
   });
 
   app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
@@ -205,7 +232,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ success: true });
   });
 
-  // Admin - Categories
+  // ── Admin - Categories ────────────────────────────────
   app.post("/api/admin/categories", requireAdmin, async (req, res) => {
     try {
       const { insertCategorySchema } = await import("@shared/schema");
@@ -228,14 +255,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ success: true });
   });
 
-  // Admin - Store Settings
+  // ── Admin - Store Settings ────────────────────────────
   app.put("/api/admin/settings", requireAdmin, async (req, res) => {
-    try {
-      const settings = await storage.updateStoreSettings(req.body);
-      res.json(settings);
-    } catch (err) {
-      throw err;
-    }
+    const settings = await storage.updateStoreSettings(req.body);
+    res.json(settings);
+  });
+
+  // ── Admin - Loyalty Stats ─────────────────────────────
+  app.get("/api/admin/loyalty", requireAdmin, async (req, res) => {
+    const customers = await storage.getAllCustomers();
+    const stats = await storage.getLoyaltyStats();
+    res.json({ customers, stats });
   });
 
   seedDatabase();

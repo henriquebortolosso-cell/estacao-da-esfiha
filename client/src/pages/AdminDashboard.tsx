@@ -3,13 +3,13 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Package, Tag, Settings, LogOut, Plus, Pencil, Trash2,
-  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown
+  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Product, Category, StoreSettings } from "@shared/schema";
 
-type Tab = "overview" | "products" | "categories" | "settings";
+type Tab = "overview" | "products" | "categories" | "settings" | "loyalty";
 
 const apiRequest = async (url: string, method = "GET", body?: unknown) => {
   const res = await fetch(url, {
@@ -262,6 +262,19 @@ export default function AdminDashboard() {
     enabled: !authLoading && !authError,
   });
 
+  const { data: loyaltyData } = useQuery<{
+    customers: Array<{
+      id: number; phone: string; name: string;
+      paidDeliveryOrders: number; freeDeliveriesUsed: number; createdAt: string;
+    }>;
+    stats: { totalPaidOrders: number; totalFreeDeliveries: number; totalCustomers: number };
+  }>({
+    queryKey: ["/api/admin/loyalty"],
+    queryFn: () => apiRequest("/api/admin/loyalty"),
+    enabled: !authLoading && !authError && activeTab === "loyalty",
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     if (settings) setSettingsForm(settings);
   }, [settings]);
@@ -334,6 +347,7 @@ export default function AdminDashboard() {
     { tab: "products", label: "Produtos", icon: <Package className="w-4 h-4" /> },
     { tab: "categories", label: "Categorias", icon: <Tag className="w-4 h-4" /> },
     { tab: "settings", label: "Configurações", icon: <Settings className="w-4 h-4" /> },
+    { tab: "loyalty", label: "Fidelidade", icon: <Trophy className="w-4 h-4" /> },
   ];
 
   return (
@@ -878,6 +892,99 @@ export default function AdminDashboard() {
                 <Save className="w-4 h-4" />
                 {saveSettings.isPending ? "Salvando..." : "Salvar configurações"}
               </button>
+            </div>
+          )}
+
+          {/* ── Loyalty Tab ──────────────────────────── */}
+          {activeTab === "loyalty" && (
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3 mb-2">
+                <Trophy className="w-5 h-5 text-primary" />
+                <h1 className="text-white font-bold text-lg">Programa de Fidelidade</h1>
+              </div>
+              <p className="text-gray-400 text-sm -mt-2">A cada 10 pedidos com entrega paga, o cliente ganha 1 frete grátis.</p>
+
+              {/* Stats cards */}
+              {loyaltyData?.stats && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <Users className="w-5 h-5 text-primary mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{loyaltyData.stats.totalCustomers}</p>
+                    <p className="text-xs text-gray-400">Clientes cadastrados</p>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <Trophy className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{loyaltyData.stats.totalPaidOrders}</p>
+                    <p className="text-xs text-gray-400">Pedidos com frete pago</p>
+                  </div>
+                  <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                    <Gift className="w-5 h-5 text-green-400 mx-auto mb-1" />
+                    <p className="text-2xl font-black text-white">{loyaltyData.stats.totalFreeDeliveries}</p>
+                    <p className="text-xs text-gray-400">Fretes grátis usados</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Customers table */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Clientes</h2>
+                </div>
+                {!loyaltyData?.customers?.length ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">
+                    Nenhum cliente ainda. Os clientes aparecem aqui após o primeiro pedido.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-800">
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Nome</th>
+                          <th className="text-left px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Telefone</th>
+                          <th className="text-center px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Pedidos pagos</th>
+                          <th className="text-center px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Fretes grátis usados</th>
+                          <th className="text-center px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide">Progresso</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loyaltyData.customers.map(c => {
+                          const freeEarned = Math.floor(c.paidDeliveryOrders / 10);
+                          const freeAvailable = freeEarned - c.freeDeliveriesUsed;
+                          const progress = c.paidDeliveryOrders % 10;
+                          return (
+                            <tr key={c.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                              <td className="px-4 py-3 text-white font-medium">{c.name}</td>
+                              <td className="px-4 py-3 text-gray-400">{c.phone}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="text-white font-bold">{c.paidDeliveryOrders}</span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className={cn("font-bold", c.freeDeliveriesUsed > 0 ? "text-green-400" : "text-gray-500")}>
+                                  {c.freeDeliveriesUsed}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                    <div className="h-full bg-primary rounded-full" style={{ width: `${(progress / 10) * 100}%` }} />
+                                  </div>
+                                  <span className="text-xs text-gray-400 shrink-0">{progress}/10</span>
+                                  {freeAvailable > 0 && (
+                                    <span className="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
+                                      {freeAvailable} grátis
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
