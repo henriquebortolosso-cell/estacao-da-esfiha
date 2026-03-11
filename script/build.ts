@@ -73,6 +73,21 @@ async function buildAll() {
     logLevel: "info",
   });
   console.log("api/index.js ready for Vercel");
+
+  console.log("building netlify serverless function...");
+  await esbuild({
+    entryPoints: ["server/netlify.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "netlify/functions/api.js",
+    alias: {
+      "@shared": path.resolve("shared"),
+    },
+    external: ["pg-native", "bufferutil", "utf-8-validate"],
+    logLevel: "info",
+  });
+  console.log("netlify/functions/api.js ready for Netlify");
 }
 
 buildAll().catch((err) => {
