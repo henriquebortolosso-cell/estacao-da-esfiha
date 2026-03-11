@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { DemoStorage } from "./demo-storage";
 import { categories, products, orders, orderItems, storeSettings, customers, whatsappOrders, coupons } from "@shared/schema";
 import type {
   Category, Product, Order, OrderItem, StoreSettings, Customer, WhatsappOrder, Coupon,
@@ -279,4 +280,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage: IStorage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new DemoStorage();
