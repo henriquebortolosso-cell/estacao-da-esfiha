@@ -476,6 +476,28 @@ export default function Checkout() {
                 ))}
               </div>
 
+              {selectedPayment === 'pix' && settings?.pixKey && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 space-y-2">
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wide">Chave PIX para pagamento</p>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-sm font-mono text-gray-800 bg-white border border-blue-200 px-3 py-1.5 rounded select-all" data-testid="text-pix-key">
+                      {settings.pixKey}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(settings.pixKey!);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition-colors"
+                      data-testid="button-copy-pix"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-blue-600">Realize o pagamento e informe o comprovante para o entregador.</p>
+                </div>
+              )}
+
               {selectedPayment === 'dinheiro' && (
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 space-y-1.5">
                   <label className="text-sm font-bold text-gray-900">Troco para quanto? <span className="text-gray-500 font-normal">(opcional)</span></label>

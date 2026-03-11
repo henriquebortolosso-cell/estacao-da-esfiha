@@ -278,6 +278,17 @@ export default function Home() {
 
       <FloatingCartBar />
       <WhatsAppButton />
+
+      {/* Rodapé discreto com link para o painel */}
+      <footer className="text-center py-6 border-t border-gray-100 mt-4">
+        <a
+          href="/painel"
+          className="text-[11px] text-gray-300 hover:text-gray-500 transition-colors"
+          data-testid="link-admin-panel"
+        >
+          Painel Administrativo
+        </a>
+      </footer>
     </div>
   );
 }

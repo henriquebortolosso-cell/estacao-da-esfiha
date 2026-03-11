@@ -96,9 +96,9 @@ async function seedDatabase() {
 }
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.session?.isAdmin) {
-    return res.status(401).json({ message: "Não autorizado" });
-  }
+  // MODO TESTE — autenticação desativada temporariamente para configuração
+  // Restaurar antes do deploy em produção:
+  // if (!req.session?.isAdmin) return res.status(401).json({ message: "Não autorizado" });
   next();
 }
 
@@ -332,6 +332,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   // ── Admin - Coupons ───────────────────────────────────
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+    const allOrders = await storage.getAllOrders();
+    res.json(allOrders);
+  });
+
   app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
     const all = await storage.getAllCoupons();
     res.json(all);

@@ -66,6 +66,7 @@ export const storeSettings = pgTable("store_settings", {
   whatsappNumber: text("whatsapp_number"),
   ratingScore: text("rating_score"),
   ratingText: text("rating_text"),
+  pixKey: text("pix_key"),
 });
 
 export const customers = pgTable("customers", {

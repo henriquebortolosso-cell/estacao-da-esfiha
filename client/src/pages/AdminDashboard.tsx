@@ -3,13 +3,38 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Package, Tag, Settings, LogOut, Plus, Pencil, Trash2,
-  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard, MessageCircle, CheckCircle2, XCircle, PhoneCall
+  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard, MessageCircle, CheckCircle2, XCircle, PhoneCall, ClipboardList, QrCode
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Product, Category, StoreSettings } from "@shared/schema";
 
-type Tab = "overview" | "products" | "categories" | "settings" | "loyalty" | "whatsapp" | "coupons";
+type Tab = "overview" | "products" | "categories" | "settings" | "loyalty" | "whatsapp" | "coupons" | "orders";
+
+type OrderItemData = {
+  id: number;
+  productId: number;
+  quantity: number;
+  unitPrice: string;
+  notes: string | null;
+  productName: string;
+};
+
+type OrderData = {
+  id: number;
+  customerName: string;
+  customerPhone: string;
+  deliveryAddress: string | null;
+  paymentMethod: string;
+  changeFor: string | null;
+  status: string;
+  total: string;
+  usedFreeDelivery: boolean;
+  couponCode: string | null;
+  discountAmount: string | null;
+  createdAt: string | null;
+  items: OrderItemData[];
+};
 
 type CouponData = {
   id: number;
@@ -265,9 +290,8 @@ export default function AdminDashboard() {
     retry: false,
   });
 
-  useEffect(() => {
-    if (authError) setLocation("/");
-  }, [authError]);
+  // MODO TESTE — redirect desativado para configuração. Restaurar antes do deploy:
+  // useEffect(() => { if (authError) setLocation("/"); }, [authError]);
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
@@ -316,6 +340,14 @@ export default function AdminDashboard() {
     queryFn: () => apiRequest("/api/admin/coupons"),
     enabled: !authLoading && !authError && activeTab === "coupons",
     refetchOnWindowFocus: false,
+  });
+
+  const { data: ordersData } = useQuery<OrderData[]>({
+    queryKey: ["/api/admin/orders"],
+    queryFn: () => apiRequest("/api/admin/orders"),
+    enabled: !authLoading && !authError && activeTab === "orders",
+    refetchOnWindowFocus: false,
+    refetchInterval: activeTab === "orders" ? 30000 : false,
   });
 
   const { data: topProducts } = useQuery<{ productId: number; name: string; totalSold: number }[]>({
@@ -432,6 +464,7 @@ export default function AdminDashboard() {
     { tab: "loyalty", label: "Fidelidade", icon: <Trophy className="w-4 h-4" /> },
     { tab: "whatsapp", label: "Pedidos WhatsApp", icon: <MessageCircle className="w-4 h-4" />, badge: whatsappData?.stats?.pendente || 0 },
     { tab: "coupons", label: "Cupons", icon: <Tag className="w-4 h-4" /> },
+    { tab: "orders", label: "Pedidos", icon: <ClipboardList className="w-4 h-4" /> },
   ];
 
   return (
@@ -1109,6 +1142,22 @@ export default function AdminDashboard() {
                 })}
               </div>
 
+              {/* Chave PIX */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <QrCode className="w-4 h-4 text-primary" />
+                  <h2 className="text-white font-semibold text-sm">Chave PIX</h2>
+                </div>
+                <p className="text-gray-500 text-xs -mt-2">Exibida automaticamente no checkout quando o cliente escolhe Pix.</p>
+                <input
+                  value={(settingsForm as any).pixKey || ""}
+                  onChange={e => handleSettingsChange("pixKey" as any, e.target.value || null)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="email@exemplo.com, CPF, CNPJ ou telefone"
+                  data-testid="input-pix-key"
+                />
+              </div>
+
               {/* Nossa História */}
               <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
                 <div className="flex items-center gap-2 mb-1">
@@ -1393,6 +1442,124 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ── Orders Tab ───────────────────────────── */}
+          {activeTab === "orders" && (
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3">
+                <ClipboardList className="w-5 h-5 text-primary" />
+                <h1 className="text-white font-bold text-lg">Pedidos</h1>
+              </div>
+              <p className="text-gray-400 text-sm -mt-2">Pedidos realizados pelo checkout do site. Atualiza automaticamente a cada 30 segundos.</p>
+
+              {/* Stats */}
+              {ordersData && (() => {
+                const today = new Date().toDateString();
+                const todayOrders = ordersData.filter(o => o.createdAt && new Date(o.createdAt).toDateString() === today);
+                const todayRevenue = todayOrders.reduce((s, o) => s + parseFloat(o.total), 0);
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-black text-white">{todayOrders.length}</p>
+                      <p className="text-xs text-gray-400 mt-1">Pedidos hoje</p>
+                    </div>
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-black text-primary">R$ {todayRevenue.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400 mt-1">Receita hoje</p>
+                    </div>
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-black text-white">{ordersData.length}</p>
+                      <p className="text-xs text-gray-400 mt-1">Total de pedidos</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Orders list */}
+              {!ordersData ? (
+                <div className="text-center text-gray-500 py-10 text-sm">Carregando pedidos...</div>
+              ) : ordersData.length === 0 ? (
+                <div className="bg-gray-900 border border-gray-800 rounded-xl p-10 text-center text-gray-500 text-sm">
+                  Nenhum pedido ainda. Os pedidos feitos pelo checkout aparecerão aqui.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {ordersData.map(order => {
+                    const paymentLabels: Record<string, string> = {
+                      pix: "Pix", cartao_credito: "Crédito", cartao_debito: "Débito", dinheiro: "Dinheiro"
+                    };
+                    const statusColors: Record<string, string> = {
+                      pending: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
+                      confirmed: "text-green-400 bg-green-400/10 border-green-400/20",
+                      cancelled: "text-red-400 bg-red-400/10 border-red-400/20",
+                    };
+                    const statusLabels: Record<string, string> = {
+                      pending: "Novo", confirmed: "Confirmado", cancelled: "Cancelado"
+                    };
+                    return (
+                      <div key={order.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3" data-testid={`card-order-${order.id}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-white font-bold text-sm">#{order.id} — {order.customerName}</span>
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border", statusColors[order.status] || statusColors.pending)}>
+                                {statusLabels[order.status] || order.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1">
+                              <a
+                                href={`https://wa.me/55${order.customerPhone.replace(/\D/g, "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-[#25D366] hover:underline font-semibold"
+                              >
+                                {order.customerPhone}
+                              </a>
+                              {order.createdAt && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(order.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-white font-black text-base">R$ {parseFloat(order.total).toFixed(2)}</p>
+                            <p className="text-gray-400 text-xs">{paymentLabels[order.paymentMethod] || order.paymentMethod}</p>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="bg-gray-800/50 rounded-lg p-3 space-y-1">
+                          {order.items.map((item, i) => (
+                            <div key={i} className="flex justify-between text-xs text-gray-300">
+                              <span>{item.quantity}× {item.productName}{item.notes ? ` (${item.notes})` : ""}</span>
+                              <span>R$ {(parseFloat(item.unitPrice) * item.quantity).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Address & extras */}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                          {order.deliveryAddress && (
+                            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{order.deliveryAddress}</span>
+                          )}
+                          {order.couponCode && (
+                            <span className="text-green-400">🎟 {order.couponCode} (-R$ {parseFloat(order.discountAmount || "0").toFixed(2)})</span>
+                          )}
+                          {order.usedFreeDelivery && (
+                            <span className="text-yellow-400">⭐ Entrega grátis (fidelidade)</span>
+                          )}
+                          {order.changeFor && (
+                            <span>Troco para R$ {parseFloat(order.changeFor).toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

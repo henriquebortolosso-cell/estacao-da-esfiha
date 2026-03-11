@@ -45,6 +45,9 @@ export interface IStorage {
   deleteCoupon(id: number): Promise<void>;
   incrementCouponUse(id: number): Promise<void>;
 
+  // Orders admin
+  getAllOrders(): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]>;
+
   // Analytics
   getTopProducts(): Promise<{ productId: number; name: string; totalSold: number }[]>;
 }
@@ -232,6 +235,31 @@ export class DatabaseStorage implements IStorage {
     await db.update(coupons)
       .set({ usedCount: sql`${coupons.usedCount} + 1` })
       .where(eq(coupons.id, id));
+  }
+
+  // ── Orders admin ────────────────────────────────────────
+  async getAllOrders(): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]> {
+    const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+    const result = await Promise.all(allOrders.map(async (order) => {
+      const items = await db
+        .select({
+          id: orderItems.id,
+          orderId: orderItems.orderId,
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+          unitPrice: orderItems.unitPrice,
+          notes: orderItems.notes,
+          productName: products.name,
+        })
+        .from(orderItems)
+        .leftJoin(products, eq(orderItems.productId, products.id))
+        .where(eq(orderItems.orderId, order.id));
+      return {
+        ...order,
+        items: items.map(i => ({ ...i, productName: i.productName ?? "Produto" })),
+      };
+    }));
+    return result;
   }
 
   // ── Analytics ───────────────────────────────────────────
