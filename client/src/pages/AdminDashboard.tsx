@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard, Package, Tag, Settings, LogOut, Plus, Pencil, Trash2,
-  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard, MessageCircle, CheckCircle2, XCircle, PhoneCall, ClipboardList, QrCode
+  ChevronRight, Store, Clock, Save, X, Image, ExternalLink, ToggleLeft, ToggleRight, ChefHat, ArrowUpDown, Trophy, Gift, Users, MapPin, CreditCard, MessageCircle, CheckCircle2, XCircle, PhoneCall, ClipboardList, QrCode, Search
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -75,9 +75,10 @@ const apiRequest = async (url: string, method = "GET", body?: unknown) => {
   return res.json();
 };
 
-function ProductModal({ product, categories, onClose, onSave }: {
+function ProductModal({ product, categories, defaultCategoryId, onClose, onSave }: {
   product?: Product | null;
   categories: Category[];
+  defaultCategoryId?: number | null;
   onClose: () => void;
   onSave: (data: Partial<Product>) => void;
 }) {
@@ -86,7 +87,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
     description: product?.description || "",
     price: product?.price || "",
     imageUrl: product?.imageUrl || "",
-    categoryId: product?.categoryId?.toString() || "",
+    categoryId: product?.categoryId?.toString() || (defaultCategoryId ? defaultCategoryId.toString() : ""),
     active: product?.active ?? true,
   });
 
@@ -180,7 +181,9 @@ function ProductModal({ product, categories, onClose, onSave }: {
               </div>
             </div>
             {form.imageUrl && (
-              <img src={form.imageUrl} alt="preview" className="mt-2 h-16 w-16 rounded-lg object-cover border border-border" />
+              <div className="mt-2 w-full aspect-square rounded-lg overflow-hidden border border-border bg-gray-100 max-w-[140px]">
+                <img src={form.imageUrl} alt="preview" className="w-full h-full object-cover" />
+              </div>
             )}
           </div>
           <div className="flex items-center justify-between py-2">
@@ -276,7 +279,8 @@ function CategoryModal({ category, onClose, onSave }: {
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [productModal, setProductModal] = useState<{ open: boolean; product?: Product | null }>({ open: false });
+  const [productModal, setProductModal] = useState<{ open: boolean; product?: Product | null; defaultCategoryId?: number | null }>({ open: false });
+  const [productSearch, setProductSearch] = useState("");
   const [categoryModal, setCategoryModal] = useState<{ open: boolean; category?: Category | null }>({ open: false });
   const [settingsForm, setSettingsForm] = useState<Partial<StoreSettings>>({});
   const [settingsChanged, setSettingsChanged] = useState(false);
@@ -529,34 +533,48 @@ export default function AdminDashboard() {
 
       {/* Mobile header nav */}
       <div className="md:hidden fixed top-0 left-0 right-0 bg-gray-900 border-b border-gray-800 z-10">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <ChefHat className="w-5 h-5 text-primary" />
-            <span className="text-white font-bold text-sm">Admin</span>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <ChefHat className="w-4 h-4 text-primary" />
+            <span className="text-white font-bold text-xs">Admin</span>
           </div>
-          <div className="flex gap-1">
-            {navItems.map(item => (
-              <button
-                key={item.tab}
-                onClick={() => setActiveTab(item.tab)}
-                className={cn(
-                  "p-2 rounded-lg transition-all",
-                  activeTab === item.tab ? "bg-primary text-white" : "text-gray-400 hover:text-white"
-                )}
-              >
-                {item.icon}
-              </button>
-            ))}
+          <div className="flex-1 overflow-x-auto no-scrollbar">
+            <div className="flex gap-0.5 w-max">
+              {navItems.map(item => (
+                <button
+                  key={item.tab}
+                  onClick={() => setActiveTab(item.tab)}
+                  className={cn(
+                    "relative shrink-0 p-2 rounded-lg transition-all",
+                    activeTab === item.tab ? "bg-primary text-white" : "text-gray-400 hover:text-white"
+                  )}
+                  title={item.label}
+                >
+                  {item.icon}
+                  {item.badge ? (
+                    <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 rounded-full text-[8px] text-white font-black flex items-center justify-center">
+                      {item.badge > 9 ? "9+" : item.badge}
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           </div>
-          <button onClick={handleLogout} className="text-gray-400 p-2">
+          <button onClick={handleLogout} className="shrink-0 text-gray-400 p-1.5">
             <LogOut className="w-4 h-4" />
           </button>
+        </div>
+        {/* Active tab label */}
+        <div className="px-3 pb-1.5">
+          <span className="text-[10px] text-primary font-bold uppercase tracking-widest">
+            {navItems.find(n => n.tab === activeTab)?.label}
+          </span>
         </div>
       </div>
 
       {/* Main content */}
       <main className="flex-1 md:ml-56 pt-0 md:pt-0">
-        <div className="p-4 md:p-8 mt-14 md:mt-0">
+        <div className="p-4 md:p-8 mt-[72px] md:mt-0">
 
           {/* Overview */}
           {activeTab === "overview" && (
@@ -695,7 +713,8 @@ export default function AdminDashboard() {
 
           {/* Products */}
           {activeTab === "products" && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Header */}
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-white">Produtos</h1>
@@ -704,67 +723,160 @@ export default function AdminDashboard() {
                 <button
                   onClick={() => setProductModal({ open: true, product: null })}
                   data-testid="button-add-product"
-                  className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-semibold transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-semibold transition-all shrink-0"
                 >
                   <Plus className="w-4 h-4" />
-                  Novo produto
+                  <span className="hidden sm:inline">Novo produto</span>
+                  <span className="sm:hidden">Novo</span>
                 </button>
               </div>
 
-              <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-                {products.length === 0 ? (
-                  <div className="p-12 text-center">
-                    <Package className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                    <p className="text-gray-400 text-sm">Nenhum produto cadastrado</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-800">
-                    {products.map((product: Product) => {
-                      const cat = categories.find(c => c.id === product.categoryId);
-                      return (
-                        <div key={product.id} data-testid={`row-product-${product.id}`} className="flex items-center gap-3 p-4 hover:bg-gray-800/50 transition-colors">
-                          <div className="w-12 h-12 rounded-lg bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                            {product.imageUrl ? (
-                              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Image className="w-5 h-5 text-gray-600" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-white text-sm font-semibold truncate">{product.name}</p>
-                              {!product.active && (
-                                <span className="px-1.5 py-0.5 bg-red-900/40 text-red-400 text-xs rounded-md shrink-0">inativo</span>
-                              )}
-                            </div>
-                            <p className="text-gray-500 text-xs truncate">{cat?.name || "—"} · R$ {Number(product.price).toFixed(2).replace(".", ",")}</p>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => setProductModal({ open: true, product })}
-                              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
-                              data-testid={`button-edit-product-${product.id}`}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm(`Remover "${product.name}"?`)) deleteProduct.mutate(product.id);
-                              }}
-                              className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-all"
-                              data-testid={`button-delete-product-${product.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Buscar produto por nome..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                  data-testid="input-product-search"
+                />
               </div>
+
+              {/* Grouped by category */}
+              {(() => {
+                const filteredProducts = productSearch.trim()
+                  ? products.filter((p: Product) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                  : products;
+
+                const uncategorized = filteredProducts.filter((p: Product) => !p.categoryId);
+                const grouped = categories
+                  .slice()
+                  .sort((a: Category, b: Category) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
+                  .map((cat: Category) => ({
+                    cat,
+                    items: filteredProducts.filter((p: Product) => p.categoryId === cat.id),
+                  }))
+                  .filter(g => g.items.length > 0 || !productSearch.trim());
+
+                if (filteredProducts.length === 0 && productSearch.trim()) {
+                  return (
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+                      <Package className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                      <p className="text-gray-400 text-sm">Nenhum produto encontrado para "{productSearch}"</p>
+                    </div>
+                  );
+                }
+
+                const ProductRow = ({ product }: { product: Product }) => (
+                  <div
+                    key={product.id}
+                    data-testid={`row-product-${product.id}`}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-800/40 transition-colors rounded-lg"
+                  >
+                    {/* Square image */}
+                    <div className="w-14 h-14 rounded-lg bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Image className="w-5 h-5 text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-white text-sm font-semibold truncate">{product.name}</p>
+                        {!product.active && (
+                          <span className="px-1.5 py-0.5 bg-red-900/40 text-red-400 text-[10px] font-semibold rounded-md shrink-0">inativo</span>
+                        )}
+                      </div>
+                      <p className="text-gray-500 text-xs mt-0.5">R$ {Number(product.price).toFixed(2).replace(".", ",")}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => setProductModal({ open: true, product })}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
+                        data-testid={`button-edit-product-${product.id}`}
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Remover "${product.name}"?`)) deleteProduct.mutate(product.id);
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-all"
+                        data-testid={`button-delete-product-${product.id}`}
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <div className="space-y-4">
+                    {grouped.map(({ cat, items }) => (
+                      <div key={cat.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                        {/* Category header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800/50">
+                          <div className="flex items-center gap-2">
+                            <Tag className="w-3.5 h-3.5 text-primary" />
+                            <span className="text-white font-bold text-sm">{cat.name}</span>
+                            <span className="text-gray-500 text-xs">· {items.length} item{items.length !== 1 ? "s" : ""}</span>
+                          </div>
+                          <button
+                            onClick={() => setProductModal({ open: true, product: null, defaultCategoryId: cat.id })}
+                            data-testid={`button-add-product-category-${cat.id}`}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Adicionar item
+                          </button>
+                        </div>
+                        {/* Products in this category */}
+                        {items.length === 0 ? (
+                          <div className="px-4 py-6 text-center">
+                            <p className="text-gray-600 text-xs">Nenhum produto nesta categoria</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-800/50 px-1">
+                            {items.map((product: Product) => (
+                              <ProductRow key={product.id} product={product} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Uncategorized */}
+                    {uncategorized.length > 0 && (
+                      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800 bg-gray-800/50">
+                          <Package className="w-3.5 h-3.5 text-gray-500" />
+                          <span className="text-gray-400 font-bold text-sm">Sem categoria</span>
+                          <span className="text-gray-500 text-xs">· {uncategorized.length} item{uncategorized.length !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="divide-y divide-gray-800/50 px-1">
+                          {uncategorized.map((product: Product) => (
+                            <ProductRow key={product.id} product={product} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {products.length === 0 && (
+                      <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+                        <Package className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                        <p className="text-gray-400 text-sm">Nenhum produto cadastrado ainda</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1664,6 +1776,7 @@ export default function AdminDashboard() {
         <ProductModal
           product={productModal.product}
           categories={categories}
+          defaultCategoryId={productModal.defaultCategoryId}
           onClose={() => setProductModal({ open: false })}
           onSave={(data) => {
             if (productModal.product) updateProduct.mutate({ id: productModal.product.id, data });
