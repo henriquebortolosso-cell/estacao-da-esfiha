@@ -1,9 +1,8 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
+import path from "path";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
 const allowlist = [
   "@google/generative-ai",
   "axios",
@@ -59,6 +58,21 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  console.log("building vercel serverless function...");
+  await esbuild({
+    entryPoints: ["server/vercel.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "api/index.js",
+    alias: {
+      "@shared": path.resolve("shared"),
+    },
+    external: ["pg-native", "bufferutil", "utf-8-validate"],
+    logLevel: "info",
+  });
+  console.log("api/index.js ready for Vercel");
 }
 
 buildAll().catch((err) => {
