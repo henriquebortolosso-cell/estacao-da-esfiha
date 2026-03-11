@@ -366,6 +366,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(top);
   });
 
-  seedDatabase();
+  if (process.env.DATABASE_URL) seedDatabase();
   return httpServer;
 }
