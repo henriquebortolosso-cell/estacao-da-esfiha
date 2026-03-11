@@ -79,15 +79,15 @@ async function buildAll() {
     entryPoints: ["server/netlify.ts"],
     platform: "node",
     bundle: true,
-    format: "cjs",
-    outfile: "netlify/functions/api.js",
+    format: "esm",
+    outfile: "netlify/functions/api.mjs",
     alias: {
       "@shared": path.resolve("shared"),
     },
     external: ["pg-native", "bufferutil", "utf-8-validate"],
     logLevel: "info",
   });
-  console.log("netlify/functions/api.js ready for Netlify");
+  console.log("netlify/functions/api.mjs ready for Netlify");
 }
 
 buildAll().catch((err) => {
