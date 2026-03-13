@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ShoppingBag, Search, X, MapPin, Clock, CreditCard, Banknote, QrCode, Menu, MessageCircle, Download, BookOpen, ChevronRight } from "lucide-react";
+import { ShoppingBag, Search, X, MapPin, Clock, CreditCard, Banknote, QrCode, Menu, MessageCircle, Download, BookOpen, ChevronRight, ClipboardList } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -176,6 +176,16 @@ export function Header({ searchQuery, onSearchChange, showSearch }: HeaderProps)
                     Atendimento
                     <ChevronRight className="w-3.5 h-3.5 ml-auto text-white/30" />
                   </a>
+                  <div className="h-px bg-white/5" />
+                  <button
+                    onClick={() => { setMenuOpen(false); navigate("/meus-pedidos"); }}
+                    data-testid="menu-item-pedidos"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-white/80 hover:bg-white/5 hover:text-white transition-colors text-sm font-semibold text-left"
+                  >
+                    <ClipboardList className="w-4 h-4 text-[#D21033] shrink-0" />
+                    Meus Pedidos
+                    <ChevronRight className="w-3.5 h-3.5 ml-auto text-white/30" />
+                  </button>
                   <div className="h-px bg-white/5" />
                   <button
                     onClick={() => { setMenuOpen(false); setAppModalOpen(true); }}

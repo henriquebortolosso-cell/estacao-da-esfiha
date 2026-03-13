@@ -6,6 +6,12 @@
     <link rel="icon" type="image/webp" href="/favicon.webp" />
     <title>Estação da Esfiha - Delivery</title>
     <meta name="description" content="Peça online as melhores esfihas, pizzas, lanches e muito mais. Entrega rápida na sua casa!" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#D21033" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Estação da Esfiha" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     <meta property="og:title" content="Estação da Esfiha - Delivery" />
     <meta property="og:description" content="Peça online as melhores esfihas, pizzas, lanches e muito mais." />
     <meta property="og:image" content="/logo.webp" />
@@ -16,5 +22,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

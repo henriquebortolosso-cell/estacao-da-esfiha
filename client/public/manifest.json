@@ -1,0 +1,24 @@
+{
+  "name": "Estação da Esfiha - Delivery",
+  "short_name": "Estação da Esfiha",
+  "description": "Peça online as melhores esfihas, pizzas, lanches e muito mais. Entrega rápida!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#D21033",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any"
+    }
+  ]
+}

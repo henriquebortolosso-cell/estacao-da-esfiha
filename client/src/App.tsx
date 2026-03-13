@@ -11,6 +11,7 @@ import OrderSuccess from "./pages/OrderSuccess";
 import AdminAccess from "./pages/AdminAccess";
 import AdminDashboard from "./pages/AdminDashboard";
 import NossaHistoria from "./pages/NossaHistoria";
+import MeusPedidos from "./pages/MeusPedidos";
 import { CartProvider } from "./lib/cart";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/checkout" component={Checkout} />
       <Route path="/order/:id" component={OrderSuccess} />
       <Route path="/nossa-historia" component={NossaHistoria} />
+      <Route path="/meus-pedidos" component={MeusPedidos} />
       <Route path="/painel/acesso/:token" component={AdminAccess} />
       <Route path="/painel" component={AdminDashboard} />
       <Route component={NotFound} />

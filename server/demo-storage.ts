@@ -278,6 +278,27 @@ export class DemoStorage implements IStorage {
     }));
   }
 
+  async updateOrderStatus(id: number, status: string) {
+    const order = this._orders.find(o => o.id === id);
+    if (!order) throw new Error("Order not found");
+    order.status = status;
+    return { ...order };
+  }
+
+  async getOrdersByPhone(phone: string) {
+    const normalized = phone.replace(/\D/g, "");
+    const matched = this._orders.filter(o => o.customerPhone.replace(/\D/g, "") === normalized);
+    return matched.map(order => ({
+      ...order,
+      items: this._orderItems
+        .filter(i => i.orderId === order.id)
+        .map(i => ({
+          ...i,
+          productName: this._products.find(p => p.id === i.productId)?.name ?? "Produto",
+        })),
+    }));
+  }
+
   async getTopProducts() {
     const counts: Record<number, number> = {};
     this._orderItems.forEach(i => {

@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Trash2, Plus, Minus, MapPin, CreditCard, User, FileText, CheckCircle2, ShoppingBag, Star, Gift, Trophy, MessageCircle, Tag, X } from "lucide-react";
 
@@ -63,10 +63,37 @@ export default function Checkout() {
   const [couponError, setCouponError] = useState("");
   const [couponPending, setCouponPending] = useState(false);
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: { paymentMethod: "pix" }
   });
+
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+  const cepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const lookupCep = useCallback(async (rawCep: string) => {
+    const digits = rawCep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setCepLoading(true);
+    setCepError("");
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        setCepError("CEP não encontrado");
+      } else {
+        if (data.logradouro) setValue("street", data.logradouro, { shouldValidate: true });
+        if (data.bairro) setValue("neighborhood", data.bairro, { shouldValidate: true });
+        if (data.localidade) setValue("city", data.localidade, { shouldValidate: true });
+        if (data.uf) setValue("state", data.uf, { shouldValidate: true });
+      }
+    } catch {
+      setCepError("Erro ao buscar CEP");
+    } finally {
+      setCepLoading(false);
+    }
+  }, [setValue]);
 
   const selectedPayment = watch("paymentMethod");
   const phoneValue = watch("customerPhone");
@@ -404,6 +431,38 @@ export default function Checkout() {
               </div>
 
               <div className="space-y-3">
+                {/* CEP first - triggers auto-fill */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">CEP</label>
+                  <div className="relative">
+                    <input
+                      {...register("zip", {
+                        onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                          const raw = e.target.value;
+                          const digits = raw.replace(/\D/g, "");
+                          if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+                          if (digits.length === 8) {
+                            cepTimerRef.current = setTimeout(() => lookupCep(digits), 300);
+                          }
+                        },
+                      })}
+                      type="text"
+                      inputMode="numeric"
+                      className={inputClass(!!errors.zip || !!cepError)}
+                      placeholder="12345-678"
+                      data-testid="input-zip"
+                    />
+                    {cepLoading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-[#D21033] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  {errors.zip && <p className="text-xs text-red-500">{errors.zip.message}</p>}
+                  {cepError && <p className="text-xs text-red-500">{cepError}</p>}
+                  <p className="text-[10px] text-gray-400">Digite o CEP para preencher o endereço automaticamente</p>
+                </div>
+
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-2 space-y-1">
                     <label className="text-xs font-bold text-gray-700">Rua/Avenida</label>
@@ -429,23 +488,16 @@ export default function Checkout() {
                     {errors.neighborhood && <p className="text-xs text-red-500">{errors.neighborhood.message}</p>}
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-700">CEP</label>
-                    <input {...register("zip")} type="text" inputMode="numeric" className={inputClass(!!errors.zip)} placeholder="12345-678" data-testid="input-zip" />
-                    {errors.zip && <p className="text-xs text-red-500">{errors.zip.message}</p>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-2 space-y-1">
                     <label className="text-xs font-bold text-gray-700">Cidade</label>
                     <input {...register("city")} className={inputClass(!!errors.city)} placeholder="Ex: São Paulo" data-testid="input-city" />
                     {errors.city && <p className="text-xs text-red-500">{errors.city.message}</p>}
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-700">UF</label>
-                    <input {...register("state")} placeholder="SP" maxLength={2} className={cn(inputClass(!!errors.state), "uppercase")} data-testid="input-state" />
-                    {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
-                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-gray-700">UF</label>
+                  <input {...register("state")} placeholder="SP" maxLength={2} className={cn(inputClass(!!errors.state), "uppercase w-20")} data-testid="input-state" />
+                  {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
                 </div>
               </div>
             </section>

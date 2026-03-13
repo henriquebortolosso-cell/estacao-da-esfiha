@@ -331,11 +331,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json(order);
   });
 
-  // ── Admin - Coupons ───────────────────────────────────
+  // ── Admin - Order Status ────────────────────────────────
   app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     const allOrders = await storage.getAllOrders();
     res.json(allOrders);
   });
+
+  app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
+    const { status } = req.body;
+    const validStatuses = ["pending", "preparing", "out_for_delivery", "delivered", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Status inválido" });
+    }
+    const order = await storage.updateOrderStatus(Number(req.params.id), status);
+    res.json(order);
+  });
+
+  // ── Customer Order History ──────────────────────────────
+  app.get("/api/orders/history/:phone", async (req, res) => {
+    const orders = await storage.getOrdersByPhone(req.params.phone);
+    res.json(orders);
+  });
+
+  // ── Admin - Coupons ───────────────────────────────────
 
   app.get("/api/admin/coupons", requireAdmin, async (req, res) => {
     const all = await storage.getAllCoupons();
@@ -364,6 +382,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/analytics/top-products", requireAdmin, async (req, res) => {
     const top = await storage.getTopProducts();
     res.json(top);
+  });
+
+  // ── Public: Order Status (for tracking page) ──────────
+  app.get("/api/orders/:id/status", async (req, res) => {
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order) return res.status(404).json({ message: "Pedido não encontrado" });
+    res.json({ id: order.id, status: order.status });
   });
 
   if (process.env.DATABASE_URL) seedDatabase();

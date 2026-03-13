@@ -48,6 +48,10 @@ export interface IStorage {
 
   // Orders admin
   getAllOrders(): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]>;
+  updateOrderStatus(id: number, status: string): Promise<Order>;
+
+  // Customer order history
+  getOrdersByPhone(phone: string): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]>;
 
   // Analytics
   getTopProducts(): Promise<{ productId: number; name: string; totalSold: number }[]>;
@@ -241,6 +245,36 @@ export class DatabaseStorage implements IStorage {
   // ── Orders admin ────────────────────────────────────────
   async getAllOrders(): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]> {
     const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(100);
+    const result = await Promise.all(allOrders.map(async (order) => {
+      const items = await db
+        .select({
+          id: orderItems.id,
+          orderId: orderItems.orderId,
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+          unitPrice: orderItems.unitPrice,
+          notes: orderItems.notes,
+          productName: products.name,
+        })
+        .from(orderItems)
+        .leftJoin(products, eq(orderItems.productId, products.id))
+        .where(eq(orderItems.orderId, order.id));
+      return {
+        ...order,
+        items: items.map(i => ({ ...i, productName: i.productName ?? "Produto" })),
+      };
+    }));
+    return result;
+  }
+
+  async updateOrderStatus(id: number, status: string): Promise<Order> {
+    const [updated] = await db.update(orders).set({ status }).where(eq(orders.id, id)).returning();
+    return updated;
+  }
+
+  async getOrdersByPhone(phone: string): Promise<(Order & { items: (OrderItem & { productName: string })[] })[]> {
+    const normalized = phone.replace(/\D/g, "");
+    const allOrders = await db.select().from(orders).where(eq(orders.customerPhone, normalized)).orderBy(desc(orders.createdAt)).limit(50);
     const result = await Promise.all(allOrders.map(async (order) => {
       const items = await db
         .select({
