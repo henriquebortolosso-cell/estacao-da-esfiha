@@ -440,6 +440,16 @@ export default function AdminDashboard() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const updateOrderStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiRequest(`/api/admin/orders/${id}/status`, "PATCH", { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/orders"] });
+      toast({ title: "Status do pedido atualizado!" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setLocation("/");
@@ -1604,11 +1614,20 @@ export default function AdminDashboard() {
                     };
                     const statusColors: Record<string, string> = {
                       pending: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
+                      preparing: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+                      out_for_delivery: "text-orange-400 bg-orange-400/10 border-orange-400/20",
+                      delivered: "text-green-400 bg-green-400/10 border-green-400/20",
                       confirmed: "text-green-400 bg-green-400/10 border-green-400/20",
                       cancelled: "text-red-400 bg-red-400/10 border-red-400/20",
                     };
                     const statusLabels: Record<string, string> = {
-                      pending: "Novo", confirmed: "Confirmado", cancelled: "Cancelado"
+                      pending: "Novo", preparing: "Preparando", out_for_delivery: "Saiu p/ Entrega", delivered: "Entregue", confirmed: "Confirmado", cancelled: "Cancelado"
+                    };
+                    const nextStatusMap: Record<string, string> = {
+                      pending: "preparing", preparing: "out_for_delivery", out_for_delivery: "delivered",
+                    };
+                    const nextStatusLabel: Record<string, string> = {
+                      pending: "Preparando", preparing: "Saiu p/ Entrega", out_for_delivery: "Entregue",
                     };
                     return (
                       <div key={order.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3" data-testid={`card-order-${order.id}`}>
@@ -1652,16 +1671,38 @@ export default function AdminDashboard() {
                           ))}
                         </div>
 
+                        {/* Status Actions */}
+                        {nextStatusMap[order.status] && (
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => updateOrderStatus.mutate({ id: order.id, status: nextStatusMap[order.status] })}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-colors"
+                              data-testid={`btn-status-${order.id}`}
+                            >
+                              <ChevronRight className="w-3 h-3" />
+                              Avançar para: {nextStatusLabel[order.status]}
+                            </button>
+                            {order.status !== "cancelled" && (
+                              <button
+                                onClick={() => updateOrderStatus.mutate({ id: order.id, status: "cancelled" })}
+                                className="flex items-center gap-1 px-2 py-1.5 text-red-400 hover:bg-red-400/10 rounded-lg text-xs font-medium transition-colors"
+                              >
+                                <XCircle className="w-3 h-3" /> Cancelar
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {/* Address & extras */}
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
                           {order.deliveryAddress && (
                             <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{order.deliveryAddress}</span>
                           )}
                           {order.couponCode && (
-                            <span className="text-green-400">🎟 {order.couponCode} (-R$ {parseFloat(order.discountAmount || "0").toFixed(2)})</span>
+                            <span className="text-green-400">Cupom: {order.couponCode} (-R$ {parseFloat(order.discountAmount || "0").toFixed(2)})</span>
                           )}
                           {order.usedFreeDelivery && (
-                            <span className="text-yellow-400">⭐ Entrega grátis (fidelidade)</span>
+                            <span className="text-yellow-400">Entrega grátis (fidelidade)</span>
                           )}
                           {order.changeFor && (
                             <span>Troco para R$ {parseFloat(order.changeFor).toFixed(2)}</span>
