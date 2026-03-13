@@ -1,6 +1,6 @@
 import { useRoute, Link } from "wouter";
 import { useState, useEffect } from "react";
-import { MapPin, Receipt, Clock, ChevronRight, Phone, Package, Truck, PartyPopper } from "lucide-react";
+import { MapPin, Receipt, Clock, ChevronRight, Phone, Package, Truck, PartyPopper, XCircle } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { useOrder } from "@/hooks/use-orders";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -39,6 +39,20 @@ const statusConfig: Record<string, { label: string; description: string; icon: t
     icon: PartyPopper,
     color: "text-green-500",
   },
+  cancelled: {
+    label: "Cancelado",
+    description: "Seu pedido foi cancelado.",
+    icon: XCircle,
+    color: "text-red-500",
+  },
+};
+
+const statusBgMap: Record<string, string> = {
+  pending: "bg-yellow-100",
+  preparing: "bg-blue-100",
+  out_for_delivery: "bg-orange-100",
+  delivered: "bg-green-100",
+  cancelled: "bg-red-100",
 };
 
 export default function OrderSuccess() {
@@ -58,6 +72,9 @@ export default function OrderSuccess() {
         if (res.ok && active) {
           const data = await res.json();
           setLiveStatus(data.status);
+          if (data.status === "delivered" || data.status === "cancelled") {
+            clearInterval(interval);
+          }
         }
       } catch {
         // ignore polling errors
@@ -105,19 +122,28 @@ export default function OrderSuccess() {
 
         {/* Success Header */}
         <div className="text-center mb-8">
-          <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-opacity-10", config.color)}>
+          <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4", statusBgMap[currentStatus] || "bg-yellow-100")}>
             <StatusIcon className={cn("w-8 h-8", config.color)} />
           </div>
           <h1 className="text-2xl font-black text-foreground mb-1">
-            {currentStatus === "delivered" ? "Pedido Entregue!" : "Pedido Confirmado!"}
+            {currentStatus === "delivered" ? "Pedido Entregue!" : currentStatus === "cancelled" ? "Pedido Cancelado" : "Pedido Confirmado!"}
           </h1>
           <p className="text-muted-foreground text-sm">
             Olá, <strong className="text-foreground">{order.customerName.split(' ')[0]}</strong>! Pedido <strong className="text-foreground">#{order.id}</strong>
           </p>
         </div>
 
+        {/* Cancelled Banner */}
+        {currentStatus === "cancelled" && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-4 text-center">
+            <XCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
+            <p className="text-red-700 font-bold text-sm">Este pedido foi cancelado.</p>
+            <p className="text-red-500 text-xs mt-1">Entre em contato conosco se tiver dúvidas.</p>
+          </div>
+        )}
+
         {/* Status Tracker */}
-        <div className="bg-white rounded-xl border border-border p-5 mb-4">
+        {currentStatus !== "cancelled" && <div className="bg-white rounded-xl border border-border p-5 mb-4">
           <h3 className="text-xs font-black uppercase tracking-widest text-foreground mb-4 flex items-center gap-2">
             <span className="w-1 h-4 bg-primary inline-block rounded" />
             Acompanhe seu Pedido
@@ -167,7 +193,7 @@ export default function OrderSuccess() {
           {currentStatus !== "delivered" && (
             <p className="text-[10px] text-muted-foreground text-center mt-2">Atualiza automaticamente a cada 10 segundos</p>
           )}
-        </div>
+        </div>}
 
         <div className="space-y-3">
 
